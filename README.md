@@ -1,1 +1,1 @@
-# cdda-json-modding-app
+# cdda-json-editor-app
