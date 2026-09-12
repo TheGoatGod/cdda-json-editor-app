@@ -41,7 +41,7 @@ v2.3.1 reliability update
 - Restore previous save is available from the tab toolbar and File menu.
 - Formatting and minifying now mark changed documents as modified.
 
-Run from this folder
+Run from CDDA_Json_Editor_Desktop_vx.x.x
 
 1. Install Node.js LTS.
 2. Open a terminal in this folder.
