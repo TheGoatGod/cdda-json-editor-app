@@ -1,0 +1,31 @@
+{
+  "name": "cdda-json-editor-desktop",
+  "version": "2.4.0",
+  "description": "Desktop app wrapper for the CDDA JSON Editor and Formatter.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^36.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.gmc.cdda.jsoneditor",
+    "productName": "CDDA JSON Editor",
+    "artifactName": "CDDA JSON Editor ${version}.${ext}",
+    "files": [
+      "main.js",
+      "preload.js",
+      "cdda_json_color_editor_local_formatter.html",
+      "README.txt"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ]
+    }
+  }
+}
