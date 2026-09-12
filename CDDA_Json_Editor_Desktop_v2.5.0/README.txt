@@ -35,6 +35,7 @@ v2.5.0 feature update
 - Made both CDDA release/sample selectors use the same readable styling.
 - Removed the redundant status and filename badges from the top bar.
 - New sessions now start on a clean untitled tab; samples remain available from the sample selector.
+- The desktop build uses the supplied JSON application icon.
 
 v2.4.1 maintenance update
 

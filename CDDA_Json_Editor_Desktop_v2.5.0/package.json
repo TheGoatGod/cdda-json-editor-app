@@ -20,9 +20,11 @@
       "main.js",
       "preload.js",
       "cdda_json_color_editor_local_formatter.html",
+      "json-app-icon-real-json.ico",
       "README.txt"
     ],
     "win": {
+      "icon": "json-app-icon-real-json.ico",
       "target": [
         "portable"
       ]
