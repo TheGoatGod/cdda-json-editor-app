@@ -8,12 +8,19 @@ application instead of the web browser.
 Important shortcuts
 
 Ctrl/Cmd + Shift + W  Close the active editor tab
+
 Ctrl/Cmd + Shift + T  Create a new editor tab
+
 Ctrl/Cmd + S          Save the active JSON file
+
 Ctrl/Cmd + Shift + S  Save all open files
+
 Ctrl/Cmd + F          Focus search
+
 Ctrl/Cmd + H          Focus replace
+
 Ctrl/Cmd + Alt + R    Restore the active tab's previous saved version
+
 
 Search counts
 
