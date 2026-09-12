@@ -1,5 +1,5 @@
 # cdda-json-editor-app
-CDDA JSON Editor Desktop v2.4.1
+CDDA JSON Editor Desktop v2.5.0
 
 This is a Windows/macOS/Linux desktop wrapper around the CDDA JSON Editor.
 It runs the editor in Electron, so native menu shortcuts are handled by the
@@ -11,7 +11,9 @@ Ctrl/Cmd + Shift + W  Close the active editor tab
 
 Ctrl/Cmd + Shift + T  Create a new editor tab
 
-Ctrl/Cmd + S          Save the active JSON file
+Ctrl/Cmd + S          Save JSON (same flow as Save As)
+
+Ctrl/Cmd + Alt + S    Save As (same flow as Save JSON)
 
 Ctrl/Cmd + Shift + S  Save all open files
 
@@ -21,12 +23,27 @@ Ctrl/Cmd + H          Focus replace
 
 Ctrl/Cmd + Alt + R    Restore the active tab's previous saved version
 
+The Projects panel can open a folder, filter its JSON files, and open one or
+all of them in tabs. Paths are shown relative to the selected folder, so a
+root-level file appears as modinfo.json and nested paths do not repeat the
+head folder. Use Hide projects in the top bar to minimize it, or the
+left/right arrows in its header to dock it on either side.
+
 
 Search counts
 
 The search bar reports the total number of plain-text or regex matches. After
 using Next or Previous it reports the current position as "Match 3 of 12".
 Huge files count matches in the background so the editor remains responsive.
+
+v2.5.0 feature update
+
+- Save JSON and Save As now share one save flow: opened files ask whether to Override or Save As, while new files open the Save As dialog.
+- The collapsible Projects panel lists JSON files from opened folders, with filtering and Open all.
+- Added Copy JSON and Duplicate tab workflow actions.
+- Made both CDDA release/sample selectors use the same readable styling.
+- Removed the redundant status and filename badges from the top bar.
+- New sessions now start on a clean untitled tab; samples remain available from the sample selector.
 
 v2.4.1 maintenance update
 
@@ -46,7 +63,7 @@ v2.3.1 reliability update
 - Restore previous save is available from the tab toolbar and File menu.
 - Formatting and minifying now mark changed documents as modified.
 
-Run from CDDA_Json_Editor_Desktop_v2.4.1
+Run from CDDA_Json_Editor_Desktop_v2.5.0
 
 1. Install Node.js LTS.
 2. Open a terminal in this folder.
