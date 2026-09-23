@@ -1,5 +1,5 @@
 # cdda-json-editor-app
-CDDA JSON Editor Desktop v2.5.0
+CDDA JSON Editor Desktop v2.6.1
 
 This is a Windows/macOS/Linux desktop wrapper around the CDDA JSON Editor.
 It runs the editor in Electron, so native menu shortcuts are handled by the
@@ -26,7 +26,8 @@ Ctrl/Cmd + Alt + R    Restore the active tab's previous saved version
 The Projects panel can open a folder, filter its JSON files, and open one or
 all of them in tabs. Paths are shown relative to the selected folder, so a
 root-level file appears as modinfo.json and nested paths do not repeat the
-head folder. Use Hide projects in the top bar to minimize it, or the
+head folder. The main project folder and every nested folder can be expanded
+or collapsed. Use Hide projects in the top bar to minimize it, or the
 left/right arrows in its header to dock it on either side.
 
 
