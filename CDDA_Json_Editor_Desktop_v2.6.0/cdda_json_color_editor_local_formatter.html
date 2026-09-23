@@ -1,0 +1,4706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CDDA JSON Color Editor v2.6.0</title>
+<style>
+  :root{
+    --bg:#0f172a;
+    --panel:#111827;
+    --panel-2:#0b1220;
+    --border:#243044;
+    --text:#e5e7eb;
+    --muted:#94a3b8;
+    --accent:#38bdf8;
+    --good:#22c55e;
+    --warn:#f59e0b;
+    --bad:#ef4444;
+    --key:#93c5fd;
+    --string:#86efac;
+    --number:#fca5a5;
+    --boolean:#fcd34d;
+    --null:#c4b5fd;
+    --punct:#cbd5e1;
+  }
+  body.theme-slate{
+    --bg:#111827;
+    --panel:#172033;
+    --panel-2:#101827;
+    --border:#334155;
+    --text:#f1f5f9;
+    --muted:#a6b5ca;
+    --accent:#67e8f9;
+  }
+  body.theme-contrast{
+    --bg:#050505;
+    --panel:#0d0d0d;
+    --panel-2:#000000;
+    --border:#64748b;
+    --text:#ffffff;
+    --muted:#d1d5db;
+    --accent:#facc15;
+    --key:#bfdbfe;
+    --string:#bbf7d0;
+    --number:#fecaca;
+    --boolean:#fef08a;
+    --null:#ddd6fe;
+    --punct:#f8fafc;
+  }
+  * { box-sizing: border-box; }
+  body{
+    margin:0;
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background:linear-gradient(180deg,#09111f 0%, #0f172a 100%);
+    color:var(--text);
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  .topbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+    padding:12px;
+    border-bottom:1px solid var(--border);
+    background:rgba(3,7,18,.75);
+    backdrop-filter: blur(8px);
+    position:sticky;
+    top:0;
+    z-index:2;
+  }
+  .topbar .btn,
+  .topbar .badge,
+  .topbar select{ white-space:nowrap; flex-shrink:0; }
+  .btn{
+    border:1px solid var(--border);
+    background:linear-gradient(180deg,#172033,#0d1525);
+    color:var(--text);
+    padding:10px 14px;
+    border-radius:12px;
+    cursor:pointer;
+    font-size:14px;
+    transition:border-color .16s ease, background .16s ease, transform .16s ease;
+  }
+  .btn:hover{ border-color:#33517c; background:linear-gradient(180deg,#1d2a43,#111d32); transform:translateY(-1px); }
+  .btn:disabled{ opacity:.55; cursor:wait; }
+  .btn:focus-visible,.tab:focus-visible,.settings-panel select:focus-visible,.settings-panel input:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .settings-backdrop{
+    position:fixed;
+    inset:0;
+    z-index:20;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    background:rgba(2,6,23,.72);
+    backdrop-filter:blur(5px);
+  }
+  .settings-backdrop.hidden{ display:none; }
+  .settings-panel{
+    width:min(720px,100%);
+    max-height:min(90vh,760px);
+    overflow:auto;
+    border:1px solid var(--border);
+    border-radius:16px;
+    background:#0f172a;
+    box-shadow:0 20px 70px rgba(0,0,0,.45);
+  }
+  .settings-head,.settings-foot{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:14px 16px;
+    border-bottom:1px solid var(--border);
+  }
+  .settings-head h2{ margin:0; font-size:18px; }
+  .settings-foot{ border-top:1px solid var(--border); border-bottom:0; justify-content:flex-end; }
+  .settings-body{ padding:16px; display:grid; gap:16px; }
+  .settings-group{ border:1px solid var(--border); border-radius:12px; padding:12px; display:grid; gap:10px; }
+  .settings-group h3{ margin:0 0 2px; font-size:14px; color:#bae6fd; }
+  .setting-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; color:var(--text); font-size:14px; }
+  .setting-row small{ display:block; color:var(--muted); margin-top:3px; line-height:1.35; }
+  .setting-row label{ flex:1; }
+  .setting-row input[type="number"],.setting-row select{
+    width:130px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:7px 8px;
+    background:#0b1220;
+    color:var(--text);
+  }
+  .shortcut-list{ margin:0; padding-left:20px; color:var(--muted); line-height:1.7; font-size:13px; }
+  .searchbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+    padding:8px 12px;
+    border-bottom:1px solid var(--border);
+    background:rgba(6,10,20,.6);
+  }
+  .searchbar .btn,
+  .searchbar label,
+  .search-status{ white-space:nowrap; flex-shrink:0; }
+  .searchbar input[type="text"]{
+    min-width:190px;
+    flex:1;
+    max-width:420px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:9px 11px;
+    background:#0b1220;
+    color:var(--text);
+    font:14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .searchbar label{ color:var(--muted); font-size:13px; white-space:nowrap; }
+  .search-status{ color:var(--muted); font-size:12px; min-width:110px; }
+  .tabs{
+    display:flex;
+    gap:6px;
+    align-items:center;
+    min-height:42px;
+    padding:5px 10px;
+    overflow-x:auto;
+    border-bottom:1px solid var(--border);
+    background:#0b1220;
+  }
+  .tab{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    border:1px solid var(--border);
+    border-radius:9px;
+    padding:7px 10px;
+    color:var(--muted);
+    background:#111827;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .tab.active{ color:var(--text); border-color:#177aa8; background:#172033; }
+  .tab.drag-over{ border-color:var(--accent); box-shadow:0 0 0 1px rgba(56,189,248,.35) inset; }
+  .tab-close{ color:var(--muted); border:0; background:transparent; cursor:pointer; padding:0 2px; }
+  .tabs-tools{ display:flex; align-items:center; gap:6px; margin-left:auto; }
+  .tabs-tools input{ width:170px; border:1px solid var(--border); border-radius:8px; padding:7px 9px; background:#0b1220; color:var(--text); }
+  .tabs.tab-filtering .tab.tab-hidden{ display:none; }
+  .topbar.compact-toolbar{ gap:6px; padding:7px; }
+  .topbar.compact-toolbar .btn,
+  .topbar.compact-toolbar .badge,
+  .topbar.compact-toolbar select{ padding:7px 9px; font-size:12px; }
+  .topbar.compact-toolbar .grow{ min-width:8px; }
+  .line-numbers{
+    position:absolute;
+    inset:0 auto 0 0;
+    margin:0;
+    width:58px;
+    padding:16px 8px 16px 0;
+    overflow:hidden;
+    text-align:right;
+    white-space:pre;
+    color:#64748b;
+    background:#0b1220;
+    border-right:1px solid var(--border);
+    font:14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    pointer-events:none;
+    z-index:2;
+    user-select:none;
+  }
+  .regex-highlights{
+    position:absolute;
+    inset:0;
+    margin:0;
+    padding:16px 16px 16px 72px;
+    overflow:hidden;
+    white-space:pre;
+    font:14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color:transparent;
+    pointer-events:none;
+    z-index:1;
+  }
+  .regex-highlights mark{ color:transparent; background:rgba(250,204,21,.42); border-radius:2px; }
+  .editor-wrap.refreshing .code-layer,
+  .editor-wrap.refreshing .regex-highlights{ opacity:0; }
+  .editor-wrap.refreshing .input-layer{ color:var(--text); }
+  .editor-wrap.drop-active{ outline:2px dashed var(--accent); outline-offset:-8px; background:rgba(56,189,248,.08); }
+  .editor-wrap.no-syntax .code-layer{ display:none; }
+  .editor-wrap.no-syntax .input-layer{ color:var(--text); }
+  .editor-wrap.no-line-numbers .line-numbers{ display:none; }
+  .editor-wrap.no-line-numbers .code-layer,
+  .editor-wrap.no-line-numbers .input-layer,
+  .editor-wrap.no-line-numbers .regex-highlights{ padding-left:16px; }
+  .editor-wrap.no-regex-highlights .regex-highlights{ display:none; }
+  .editor-wrap.word-wrap .code-layer,
+  .editor-wrap.word-wrap .input-layer,
+  .editor-wrap.word-wrap .regex-highlights{ white-space:pre-wrap; overflow-wrap:anywhere; }
+  .btn.primary{ border-color:#177aa8; box-shadow:0 0 0 1px rgba(56,189,248,.12) inset; }
+  .sample-select{
+    background:#ffffff;
+    color:#000000;
+    border-color:#999999;
+    min-width:150px;
+    color-scheme:light;
+  }
+  .sample-select option{
+    background:#ffffff;
+    color:#000000;
+  }
+  .badge{
+    padding:8px 12px;
+    border-radius:999px;
+    font-size:13px;
+    border:1px solid var(--border);
+    color:var(--muted);
+    background:#0b1220;
+  }
+  .badge.ok{ color:#bbf7d0; border-color:rgba(34,197,94,.35); }
+  .badge.warn{ color:#fde68a; border-color:rgba(245,158,11,.35); }
+  .badge.err{ color:#fecaca; border-color:rgba(239,68,68,.35); }
+  .topbar.hide-status-badges #modeBadge,
+  .topbar.hide-status-badges #status,
+  .topbar.hide-status-badges #fileBadge{ display:none; }
+  .topbar #status,
+  .topbar #fileBadge{ display:none !important; }
+  .grow{ flex:1; }
+  .layout{
+    flex:1;
+    display:grid;
+    grid-template-columns: 300px 1.35fr .95fr;
+    min-height:0;
+  }
+  .layout.projects-collapsed{ grid-template-columns: 1.35fr .95fr; }
+  .layout.compare-active{ grid-template-columns: 300px 1.05fr 1.05fr .9fr; }
+  .layout.projects-collapsed.compare-active{ grid-template-columns: 1.05fr 1.05fr .9fr; }
+  .layout.panels-hidden{ grid-template-columns: 300px 1fr; }
+  .layout.projects-collapsed.panels-hidden{ grid-template-columns: 1fr; }
+  .layout.panels-hidden .side{ display:none; }
+  .side.panels-hidden{ display:none; }
+  .layout.panels-hidden.compare-active{ grid-template-columns:300px 1fr 1fr; }
+  .layout.projects-collapsed.panels-hidden.compare-active{ grid-template-columns:1fr 1fr; }
+  .layout:has(.split.both-hidden){ grid-template-columns:300px 1fr; }
+  .layout.projects-collapsed:has(.split.both-hidden){ grid-template-columns:1fr; }
+  .layout:has(.split.both-hidden) .side{ display:none; }
+  .layout:has(.split.both-hidden).compare-active{ grid-template-columns:300px 1fr 1fr; }
+  .layout.projects-collapsed:has(.split.both-hidden).compare-active{ grid-template-columns:1fr 1fr; }
+  .layout.projects-right:not(.projects-collapsed){ grid-template-columns: 1.35fr .95fr 300px; }
+  .layout.projects-right:not(.projects-collapsed).compare-active{ grid-template-columns: 1.05fr 1.05fr 300px .9fr; }
+  .layout.projects-right:not(.projects-collapsed).panels-hidden{ grid-template-columns:1fr 300px; }
+  .layout.projects-right:not(.projects-collapsed).panels-hidden.compare-active{ grid-template-columns:1fr 300px 1fr; }
+  .layout.projects-right:not(.projects-collapsed):has(.split.both-hidden){ grid-template-columns:1fr 300px; }
+  .layout.projects-right:not(.projects-collapsed):has(.split.both-hidden).compare-active{ grid-template-columns:1fr 300px 1fr; }
+  .layout.projects-collapsed .projects-panel{ display:none; }
+  .layout.projects-right .projects-panel{ order:3; }
+  .layout.projects-right .panel{ order:0; }
+  .layout.projects-right .side{ order:1; }
+  .layout.projects-right .compare-panel{ order:4; }
+  .projects-panel{
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    border-right:1px solid var(--border);
+    background:var(--panel-2);
+    box-shadow:inset -1px 0 rgba(255,255,255,.02);
+  }
+  .projects-head{ display:flex; align-items:center; gap:8px; min-height:46px; background:linear-gradient(180deg,rgba(30,41,59,.72),rgba(15,23,42,.5)); }
+  .projects-head strong{ color:var(--text); font-size:14px; letter-spacing:.01em; }
+  .projects-head .grow{ min-width:4px; }
+  .projects-head .btn{ padding:5px 8px; font-size:12px; }
+  .projects-dock-btn{ border:0; background:transparent; color:var(--muted); cursor:pointer; padding:2px 4px; font-size:14px; line-height:1; }
+  .projects-dock-btn:disabled{ opacity:.35; cursor:default; }
+  .projects-dock-btn:hover{ color:var(--accent); }
+  .projects-toolbar{ display:grid; grid-template-columns:auto auto minmax(0,1fr); gap:6px; padding:9px; border-bottom:1px solid var(--border); background:rgba(6,10,20,.3); }
+  .projects-toolbar .btn{ padding:7px 10px; font-size:12px; }
+  .projects-toolbar input{ min-width:0; width:100%; border:1px solid var(--border); border-radius:9px; padding:7px 9px; background:#0b1220; color:var(--text); }
+  #projectsView{ padding-top:0; padding-bottom:0; }
+  .project-group{ display:block; margin:0 !important; padding:0 6px !important; overflow:visible; }
+  .project-group + .project-group{ margin-top:0 !important; }
+  .project-group.project-group-collapsed{ padding-top:0; padding-bottom:0; }
+  .project-tree{ display:block; min-width:0; margin:0; padding:0; color:var(--muted); font-size:13px; }
+  .project-tree-row{ box-sizing:border-box; display:flex; align-items:center; gap:8px; width:100%; min-width:0; min-height:31px; padding:5px 8px; border:0; border-radius:8px; background:transparent; color:#b8c7dc; text-align:left; transition:background .14s ease,color .14s ease; }
+  .project-tree-root{ position:relative; min-height:36px; padding-top:6px; padding-right:58px; padding-bottom:6px; color:#f5cf87; font-size:14px; cursor:pointer; }
+  .project-tree-root-toggle{ display:flex; align-items:center; gap:8px; min-width:0; flex:1 1 auto; padding:0; border:0; background:transparent; color:inherit; text-align:left; font:inherit; cursor:pointer; }
+  .project-tree-root-toggle .project-tree-label{ flex:1 1 auto; min-width:0; overflow:hidden; overflow-wrap:normal; word-break:normal; text-overflow:ellipsis; white-space:nowrap; }
+  .project-tree-root-toggle:hover{ color:#ffe3a9; }
+  .project-tree-folder{ padding-left:6px; cursor:pointer; font:13px/1.35 system-ui, -apple-system, Segoe UI, sans-serif; }
+  .project-tree-file{ padding-left:6px; cursor:pointer; font:13px/1.35 system-ui, -apple-system, Segoe UI, sans-serif; }
+  .project-tree-row:hover{ background:rgba(56,189,248,.12); color:var(--text); }
+  .project-tree-root:hover{ background:rgba(245,207,135,.1); color:#ffe3a9; }
+  .project-tree-row:focus-visible,.project-tree-action:focus-visible,.projects-head .btn:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+  .project-tree-children{ display:block; margin:0 0 0 9px; padding:0 0 0 15px; border-left:1px solid rgba(100,116,139,.25); }
+  .project-tree-expander{ flex:0 0 14px; width:14px; padding:0; border:0; background:transparent; color:#8ec5e9; cursor:pointer; font:18px/14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-align:center; }
+  .project-tree-expander:hover{ color:#d4efff; }
+  .project-tree-spacer{ flex:0 0 14px; width:14px; }
+  .project-tree-icon{ position:relative; display:inline-block; flex:0 0 16px; width:16px; height:13px; box-sizing:border-box; }
+  .project-tree-icon.folder{ margin-top:3px; border:1px solid #8394aa; border-radius:2px; background:#64748b; }
+  .project-tree-icon.folder::before{ content:""; position:absolute; top:-4px; left:1px; width:7px; height:4px; border:1px solid #8394aa; border-bottom:0; border-radius:2px 2px 0 0; background:#64748b; }
+  .project-tree-icon.root-folder{ border-color:#e2bb6f; background:#bd9650; }
+  .project-tree-icon.root-folder::before{ border-color:#e2bb6f; background:#bd9650; }
+  .project-tree-icon.json::before{ content:"{}"; position:absolute; inset:-2px 0 0; color:#55d6c2; font:bold 11px/16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-align:center; }
+  .project-tree-label{ min-width:0; overflow-wrap:anywhere; word-break:break-word; }
+  .project-tree-count{ margin-left:2px; color:var(--muted); font-size:11px; white-space:nowrap; }
+  .project-tree-root .grow{ display:none; }
+  .project-tree-actions{ position:absolute; right:6px; display:flex; align-items:center; gap:2px; margin-left:auto; opacity:0; transition:opacity .14s ease; }
+  .project-tree-root:hover .project-tree-actions,.project-tree-root:focus-within .project-tree-actions{ opacity:1; }
+  .project-tree-action{ border:0; background:transparent; color:var(--muted); cursor:pointer; padding:2px 4px; font-size:12px; }
+  .project-tree-action:hover{ color:var(--accent); }
+  .panel{
+    min-height:0;
+    border-right:1px solid var(--border);
+    display:flex;
+    flex-direction:column;
+  }
+  .panel:last-child{ border-right:none; }
+  .compare-panel{
+    display:none;
+    min-height:0;
+    border-right:1px solid var(--border);
+    background:var(--panel);
+    flex-direction:column;
+  }
+  .layout.compare-active .compare-panel{ display:flex; }
+  .compare-code{
+    flex:1;
+    min-height:0;
+    overflow:auto;
+    margin:0;
+    padding:16px;
+    white-space:pre;
+    font:14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    tab-size:2;
+  }
+  .compare-line{ display:block; min-height:1.55em; }
+  .compare-line.changed{ background:rgba(245,158,11,.16); box-shadow:inset 3px 0 rgba(245,158,11,.8); }
+  .compare-line-number{ display:inline-block; width:48px; margin-right:12px; color:#64748b; text-align:right; user-select:none; }
+  .compare-info{ margin-left:8px; color:var(--muted); font-size:12px; }
+  .panelhead{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:10px 12px;
+    border-bottom:1px solid var(--border);
+    color:var(--muted);
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:.02em;
+    background:rgba(6,10,20,.6);
+  }
+  .editor-wrap{
+    position:relative;
+    flex:1;
+    min-height:0;
+    background:var(--panel);
+    overflow:hidden;
+  }
+  .code-layer, .input-layer{
+    position:absolute;
+    inset:0;
+    margin:0;
+    padding:16px 16px 16px 72px;
+    overflow:auto;
+    white-space:pre;
+    font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    tab-size:2;
+  }
+  .code-layer{
+    color:var(--text);
+    pointer-events:none;
+    z-index:0;
+    scrollbar-width:none;
+  }
+  .code-layer::-webkit-scrollbar{
+    display:none;
+  }
+  .code-layer, .input-layer{
+    box-sizing:border-box;
+  }
+  .input-layer{
+    color:transparent;
+    caret-color:#ffffff;
+    background:transparent;
+    border:none;
+    resize:none;
+    outline:none;
+    z-index:3;
+    width:100%;
+    height:100%;
+    display:block;
+    overflow:auto;
+    pointer-events:auto;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    touch-action:pan-x pan-y;
+  }
+  .editor-wrap.focus-editor{ box-shadow:inset 0 0 0 1px rgba(56,189,248,.1); }
+  body.focus-mode .projects-panel,
+  body.focus-mode .side,
+  body.focus-mode .compare-panel,
+  body.focus-mode .searchbar,
+  body.focus-mode .tabs-tools{ display:none !important; }
+  body.focus-mode .layout,
+  body.focus-mode .layout.projects-right,
+  body.focus-mode .layout.projects-right:not(.projects-collapsed){ grid-template-columns:1fr !important; }
+  body.focus-mode .layout .panel{ border-right:0; }
+  body.focus-mode .editor-wrap{ max-width:1280px; width:100%; margin:0 auto; }
+  body.focus-mode #focusBtn{ border-color:var(--accent); color:var(--accent); background:rgba(56,189,248,.12); }
+  .editor-wrap.plain .code-layer{
+    display:none;
+  }
+  .editor-wrap.plain .input-layer{
+    color:var(--text);
+  }
+  .code-layer .key{ color:var(--key); }
+  .code-layer .string{ color:var(--string); }
+  .code-layer .number{ color:var(--number); }
+  .code-layer .boolean{ color:var(--boolean); }
+  .code-layer .null{ color:var(--null); }
+  .code-layer .punct{ color:var(--punct); }
+
+  .side{
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    background:var(--panel-2);
+  }
+  .split{
+    flex:1;
+    min-height:0;
+    display:grid;
+    grid-template-rows: 1fr 0.9fr;
+  }
+  .split.structure-hidden{ grid-template-rows: 0 1fr; }
+  .split.validator-hidden{ grid-template-rows: 1fr 0; }
+  .split.both-hidden{ display:none; }
+  .split.structure-hidden #structureSection{ display:none; }
+  .split.validator-hidden #validationSection{ display:none; }
+  .section{
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    border-bottom:1px solid var(--border);
+  }
+  .section:last-child{ border-bottom:none; }
+  .content{
+    flex:1;
+    min-height:0;
+    overflow:auto;
+    padding:12px;
+  }
+  .tree{
+    font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .node{
+    margin-left:14px;
+    border-left:1px dashed rgba(148,163,184,.18);
+    padding-left:10px;
+  }
+  .row{
+    padding:2px 0;
+    word-break:break-word;
+  }
+  .t-key{ color:var(--key); }
+  .t-string{ color:var(--string); }
+  .t-number{ color:var(--number); }
+  .t-boolean{ color:var(--boolean); }
+  .t-null{ color:var(--null); }
+  .t-muted{ color:var(--muted); }
+
+  .issue{
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:10px 12px;
+    margin-bottom:10px;
+    background:rgba(15,23,42,.55);
+    line-height:1.5;
+  }
+  .issue:last-child{ margin-bottom:0; }
+  .issue.error{ border-color:rgba(239,68,68,.35); }
+  .issue.warning{ border-color:rgba(245,158,11,.35); }
+  .issue.note{ border-color:rgba(56,189,248,.25); }
+  .issue .label{
+    display:inline-block;
+    font-size:12px;
+    padding:2px 8px;
+    border-radius:999px;
+    margin-bottom:8px;
+    border:1px solid var(--border);
+  }
+  .issue.error .label{ color:#fecaca; border-color:rgba(239,68,68,.35); }
+  .issue.warning .label{ color:#fde68a; border-color:rgba(245,158,11,.35); }
+  .issue.note .label{ color:#bae6fd; border-color:rgba(56,189,248,.25); }
+
+  .foot{
+    padding:10px 12px;
+    border-top:1px solid var(--border);
+    font-size:13px;
+    color:var(--muted);
+    background:rgba(6,10,20,.6);
+  }
+  .hidden{ display:none; }
+  .help{
+    color:var(--muted);
+    line-height:1.55;
+  }
+  code{ color:#dbeafe; }
+  @media (max-width: 980px){
+    .layout,
+    .layout.compare-active,
+    .layout.projects-collapsed,
+    .layout.projects-collapsed.compare-active,
+    .layout.panels-hidden,
+    .layout.projects-collapsed.panels-hidden,
+    .layout.projects-right,
+    .layout.projects-right.compare-active,
+    .layout.projects-right.panels-hidden,
+    .layout.projects-right.panels-hidden.compare-active{ grid-template-columns:1fr; }
+    .panel{ border-right:none; border-bottom:1px solid var(--border); }
+    .panel:last-child{ border-bottom:none; }
+    .projects-panel{ min-height:220px; border-right:none; border-bottom:1px solid var(--border); }
+    .editor-wrap{ min-height:48vh; }
+    .side{ min-height:48vh; }
+    .split{ grid-template-rows: 1fr 1fr; }
+  }
+  @media (min-width: 981px){
+    .topbar{ flex-wrap:nowrap; overflow-x:auto; scrollbar-width:thin; }
+    .searchbar{ flex-wrap:nowrap; overflow-x:auto; scrollbar-width:thin; }
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <button class="btn primary" id="openBtn">Open JSON</button>
+    <button class="btn project-tool" id="openFolderBtn" type="button">Open folder</button>
+    <button class="btn project-tool" id="projectsToolbarToggle" type="button">Hide projects</button>
+    <button class="btn hidden" id="cancelReadBtn" type="button">Cancel read</button>
+    <span class="badge">v2.6.0</span>
+    <button class="btn" id="settingsBtn" type="button">Settings</button>
+    <button class="btn" id="focusBtn" type="button" title="Hide panels and toolbars for a larger editing view">Focus view</button>
+    <button class="btn" id="saveBtn">Save JSON</button>
+    <button class="btn" id="saveAsBtn" type="button">Save As</button>
+    <button class="btn" id="copyBtn" type="button">Copy JSON</button>
+    <button class="btn formatting-tool" id="formatBtn">Format CDDA</button>
+    <button class="btn formatting-tool" id="minifyBtn">Minify</button>
+    <button class="btn" id="validateBtn">CDDA Validate</button>
+    <button class="btn compare-tool" id="compareBtn" type="button" disabled>Compare tabs</button>
+    <select class="btn sample-tool sample-select" id="releaseSelect" aria-label="CDDA release sample profile">
+      <option value="H">H release samples</option>
+      <option value="I">I release samples</option>
+    </select>
+    <select class="btn sample-tool sample-select" id="sampleSelect" aria-label="CDDA sample selector">
+      <option value="achievement">achievement</option>
+      <option value="artifact">artifact</option>
+      <option value="bionic">bionic</option>
+      <option value="construction">construction</option>
+      <option value="effect_on_condition">effect_on_condition</option>
+      <option value="emit">emit</option>
+      <option value="fault">fault</option>
+      <option value="flags_example">flags_example</option>
+      <option value="furniture">furniture</option>
+      <option value="harvest">harvest</option>
+      <option value="item_ammo">item_ammo</option>
+      <option value="item_armor">item_armor</option>
+      <option value="item_artifact">item_artifact</option>
+      <option value="item_bionic_item">item_bionic_item</option>
+      <option value="item_book">item_book</option>
+      <option value="item_brewable">item_brewable</option>
+      <option value="item_compostable">item_compostable</option>
+      <option value="item_comestible">item_comestible</option>
+      <option value="item_engine">item_engine</option>
+      <option value="item_generic">item_generic</option>
+      <option value="item_group">item_group</option>
+      <option value="item_gun">item_gun</option>
+      <option value="item_gunmod">item_gunmod</option>
+      <option value="item_magazine">item_magazine</option>
+      <option value="item_milling">item_milling</option>
+      <option value="item_pet_armor">item_pet_armor</option>
+      <option value="item_seed">item_seed</option>
+      <option value="item_tool">item_tool</option>
+      <option value="item_toolmod">item_toolmod</option>
+      <option value="item_wheel">item_wheel</option>
+      <option value="mapgen">mapgen</option>
+      <option value="martial_art">martial_art</option>
+      <option value="material">material</option>
+      <option value="mod_info">mod_info</option>
+      <option value="monster">monster</option>
+      <option value="monstergroup">monstergroup</option>
+      <option value="mutation">mutation</option>
+      <option value="npc_class">npc_class</option>
+      <option value="overmap_special">overmap_special</option>
+      <option value="overmap_terrain">overmap_terrain</option>
+      <option value="palette">palette</option>
+      <option value="profession">profession</option>
+      <option value="proficiency">proficiency</option>
+      <option value="recipe">recipe</option>
+      <option value="recipe_category">recipe_category</option>
+      <option value="region_settings">region_settings</option>
+      <option value="requirement">requirement</option>
+      <option value="scenario">scenario</option>
+      <option value="skill">skill</option>
+      <option value="spell">spell</option>
+      <option value="start_location">start_location</option>
+      <option value="terrain">terrain</option>
+      <option value="ter_furn_transform">ter_furn_transform</option>
+      <option value="tool_quality">tool_quality</option>
+      <option value="trap">trap</option>
+      <option value="vehicle">vehicle</option>
+      <option value="vehicle_part">vehicle_part</option>
+      <option value="vehicle_spawn">vehicle_spawn</option>
+      <option value="weapon_category">weapon_category</option>
+      <option value="weakpoint_set">weakpoint_set</option>
+
+
+
+
+
+    </select>
+    <button class="btn sample-tool" id="sampleBtn">Load Sample</button>
+    <div class="grow"></div>
+    <span class="badge" id="modeBadge">Live mode</span>
+    <span class="badge" id="status">Ready</span>
+    <span class="badge" id="fileBadge">untitled.json</span>
+    <input type="file" id="fileInput" accept=".json,application/json" class="hidden" multiple />
+    <input type="file" id="folderInput" accept=".json,application/json" class="hidden" webkitdirectory directory multiple />
+  </div>
+
+  <div class="tabs" id="tabs" aria-label="Open files">
+    <div class="tab active" id="tab-1" role="button" tabindex="0"><span class="tab-name">untitled.json</span><button class="tab-close" type="button" title="Close tab">×</button></div>
+    <button class="btn" id="newTabBtn" type="button">+ New tab</button>
+    <div class="tabs-tools">
+      <input id="tabFilter" type="search" placeholder="Find open tab…" aria-label="Find open tab" />
+      <button class="btn" id="saveAllBtn" type="button">Save all</button>
+      <button class="btn" id="duplicateTabBtn" type="button">Duplicate tab</button>
+      <button class="btn" id="restoreBackupBtn" type="button" disabled>Restore previous save</button>
+      <button class="btn" id="closeOthersBtn" type="button">Close others</button>
+      <button class="btn" id="closeAllBtn" type="button">Close all</button>
+    </div>
+  </div>
+  <div class="searchbar search-tool" role="search">
+    <input id="searchInput" type="text" placeholder="Search text or regex…" autocomplete="off" />
+    <input id="replaceInput" type="text" placeholder="Replace with…" autocomplete="off" />
+    <label><input id="regexToggle" type="checkbox" /> Regex</label>
+    <label><input id="caseToggle" type="checkbox" /> Match case</label>
+    <label><input id="wholeWordToggle" type="checkbox" /> Whole word</label>
+    <select id="searchHistory" aria-label="Search history"><option value="">History</option></select>
+    <button class="btn" id="prevSearchBtn" type="button">Previous</button>
+    <button class="btn" id="nextSearchBtn" type="button">Next</button>
+    <button class="btn" id="replaceBtn" type="button">Replace</button>
+    <button class="btn" id="replaceAllBtn" type="button">Replace all</button>
+    <span class="search-status" id="searchStatus">No search</span>
+  </div>
+
+  <div class="layout">
+    <section class="projects-panel" id="projectsPanel">
+      <div class="panelhead projects-head">
+        <strong>Projects</strong>
+        <span class="grow"></span>
+        <span class="compare-info" id="projectsInfo">No folders</span>
+        <button class="projects-dock-btn" id="projectsLeftBtn" type="button" title="Move Projects panel left" aria-label="Move Projects panel left">←</button>
+        <button class="projects-dock-btn" id="projectsRightBtn" type="button" title="Move Projects panel right" aria-label="Move Projects panel right">→</button>
+        <button class="btn" id="projectsToggle" type="button">Hide</button>
+      </div>
+      <div class="projects-toolbar project-tool">
+        <button class="btn" id="projectsOpenBtn" type="button">Open folder</button>
+        <button class="btn" id="clearProjectsBtn" type="button">Clear</button>
+        <input id="projectFilter" type="search" placeholder="Filter JSON…" aria-label="Filter project JSON files" />
+      </div>
+      <div class="content" id="projectsView">
+        <div class="help">Open a folder to list its JSON files here. Click a file to open it in a tab.</div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panelhead">Editor</div>
+      <div class="editor-wrap">
+        <pre class="code-layer" id="highlighted" aria-hidden="true"></pre>
+        <pre class="regex-highlights" id="regexHighlights" aria-hidden="true"></pre>
+        <pre class="line-numbers" id="lineNumbers" aria-hidden="true">1</pre>
+        <textarea class="input-layer" id="editor" spellcheck="false" wrap="off"></textarea>
+      </div>
+      <div class="foot" id="cursorInfo">Line 1, Column 1</div>
+    </section>
+
+    <aside class="side">
+      <div class="split">
+        <section class="section" id="structureSection">
+          <div class="panelhead">Structure</div>
+          <div class="content tree" id="treeView">
+            <div class="help">
+              CDDA formatting in this build follows the project style guide more closely: <strong>2-space indentation</strong>, <strong>objects split across lines</strong>, and <strong>arrays kept inline only when the full line stays short enough</strong>. The bundled samples in this build are tuned toward <strong>0.H-style</strong> JSON examples. Compact translation-style name objects like <code>{ "str": "..." }</code> are kept inline when they fit.
+            </div>
+          </div>
+          <div class="foot" id="metaInfo">No parsed JSON yet</div>
+        </section>
+
+        <section class="section" id="validationSection">
+          <div class="panelhead">Validation Report</div>
+          <div class="content" id="issuesView">
+            <div class="help">
+              Press <strong>CDDA Validate</strong> to run the checker. This keeps the honest syntax check and adds useful CDDA structure warnings.
+            </div>
+          </div>
+          <div class="foot" id="reportInfo">No validation report yet</div>
+        </section>
+      </div>
+    </aside>
+    <section class="compare-panel" id="comparePanel">
+      <div class="panelhead">
+        Compare with
+        <select class="btn" id="compareSelect" aria-label="Choose comparison tab"></select>
+        <span class="compare-info" id="compareInfo"></span>
+      </div>
+      <pre class="compare-code" id="compareContent"></pre>
+    </section>
+  </div>
+
+  <div class="settings-backdrop hidden" id="settingsBackdrop" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <section class="settings-panel">
+      <div class="settings-head">
+        <h2 id="settingsTitle">Editor settings</h2>
+        <div class="grow"></div>
+        <button class="btn" id="settingsCloseBtn" type="button">×</button>
+      </div>
+      <div class="settings-body">
+        <div class="settings-group">
+          <h3>Editor display</h3>
+          <div class="setting-row"><label for="settingSyntax"><strong>Syntax colors</strong><small>Colorize JSON keys, strings, numbers, and punctuation.</small></label><input id="settingSyntax" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingLineNumbers"><strong>Line numbers</strong><small>Show the line-number gutter beside the editor.</small></label><input id="settingLineNumbers" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingRegexHighlights"><strong>Regex match highlights</strong><small>Highlight all search matches behind the editor text.</small></label><input id="settingRegexHighlights" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingWordWrap"><strong>Word wrap</strong><small>Wrap long lines instead of using horizontal scrolling.</small></label><input id="settingWordWrap" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingTabSize"><strong>Tab size</strong><small>Spaces inserted when pressing Tab.</small></label><select id="settingTabSize"><option value="2">2 spaces</option><option value="4">4 spaces</option><option value="8">8 spaces</option></select></div>
+          <div class="setting-row"><label for="settingFontSize"><strong>Editor font size</strong><small>Adjust code, line numbers, and comparison text together.</small></label><select id="settingFontSize"><option value="12">12 px</option><option value="14">14 px</option><option value="16">16 px</option><option value="18">18 px</option></select></div>
+          <div class="setting-row"><label for="settingLineHeight"><strong>Editor line spacing</strong><small>Give long JSON files more breathing room.</small></label><select id="settingLineHeight"><option value="1.35">Compact</option><option value="1.55">Comfortable</option><option value="1.8">Relaxed</option></select></div>
+          <div class="setting-row"><label for="settingTheme"><strong>Color theme</strong><small>Choose the visual contrast used throughout the editor.</small></label><select id="settingTheme"><option value="midnight">Midnight</option><option value="slate">Slate</option><option value="contrast">High contrast</option></select></div>
+          <div class="setting-row"><label for="settingStructure"><strong>Structure panel</strong><small>Show the parsed JSON tree beside the editor.</small></label><input id="settingStructure" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingValidator"><strong>Validation panel</strong><small>Show CDDA syntax and structure reports beside the editor.</small></label><input id="settingValidator" type="checkbox" /></div>
+        </div>
+        <div class="settings-group">
+          <h3>Behavior</h3>
+          <div class="setting-row"><label for="settingAutoValidate"><strong>Validate while editing</strong><small>Run the CDDA structure check after a short pause while typing.</small></label><input id="settingAutoValidate" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingConfirmClose"><strong>Confirm modified tab close</strong><small>Ask before closing a tab with unsaved changes.</small></label><input id="settingConfirmClose" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingRestoreTabs"><strong>Restore tabs on startup</strong><small>Remember smaller open files locally; huge files are never stored.</small></label><input id="settingRestoreTabs" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingStatusBadges"><strong>Mode badge</strong><small>Show the current editor performance mode in the top bar.</small></label><input id="settingStatusBadges" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingCompactToolbar"><strong>Compact toolbar</strong><small>Use smaller controls to keep more tools visible on narrow screens.</small></label><input id="settingCompactToolbar" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingFocusMode"><strong>Focus view on startup</strong><small>Open with panels and search tools tucked away for a larger editor.</small></label><input id="settingFocusMode" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingRecoveryDrafts"><strong>Recovery drafts</strong><small>Keep a local recovery copy while editing in case the page closes unexpectedly.</small></label><input id="settingRecoveryDrafts" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingBackupBeforeSave"><strong>Backup before Save</strong><small>Keep the previous saved text so Restore previous save can bring it back.</small></label><input id="settingBackupBeforeSave" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingConfirmReplaceAll"><strong>Confirm Replace all</strong><small>Ask before changing many matches at once.</small></label><input id="settingConfirmReplaceAll" type="checkbox" /></div>
+        </div>
+        <div class="settings-group">
+          <h3>Toolbar features</h3>
+          <div class="setting-row"><label for="settingSearchTools"><strong>Search and replace tools</strong><small>Show the search bar, regex controls, navigation, and replacement buttons.</small></label><input id="settingSearchTools" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingFormattingTools"><strong>Formatting tools</strong><small>Show Format CDDA and Minify in the top bar.</small></label><input id="settingFormattingTools" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingCompareTools"><strong>Compare tools</strong><small>Show Compare tabs and close an active comparison when disabled.</small></label><input id="settingCompareTools" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingSampleTools"><strong>Sample tools</strong><small>Show the CDDA sample selector and Load Sample button.</small></label><input id="settingSampleTools" type="checkbox" /></div>
+          <div class="setting-row"><label for="settingProjects"><strong>Projects panel</strong><small>Keep the folder browser available beside the editor. Hide or minimize it from the main app.</small></label><input id="settingProjects" type="checkbox" /></div>
+        </div>
+        <div class="settings-group">
+          <h3>Performance thresholds</h3>
+          <div class="setting-row"><label for="settingLargeLimit"><strong>Large-file threshold</strong><small>Live parsing pauses at this many characters.</small></label><input id="settingLargeLimit" type="number" min="10000" step="10000" /></div>
+          <div class="setting-row"><label for="settingHugeLimit"><strong>Huge-file threshold</strong><small>Full validation and formatting defer at this size.</small></label><input id="settingHugeLimit" type="number" min="50000" step="50000" /></div>
+        </div>
+        <div class="settings-group">
+          <h3>Keyboard shortcuts</h3>
+          <ul class="shortcut-list">
+            <li><strong>Ctrl/Cmd + F</strong> — focus search</li>
+            <li><strong>Ctrl/Cmd + H</strong> — focus replacement</li>
+            <li><strong>Enter / Shift + Enter</strong> — next / previous match</li>
+            <li><strong>F3 / Shift + F3</strong> — next / previous match</li>
+            <li><strong>Ctrl/Cmd + Tab</strong> — next open file</li>
+            <li><strong>Ctrl/Cmd + Shift + T</strong> — new tab</li>
+            <li><strong>Ctrl/Cmd + Shift + W</strong> — close active tab</li>
+            <li><strong>Ctrl/Cmd + Alt/Option + R</strong> — restore previous save</li>
+            <li><strong>Ctrl/Cmd + Alt/Option + S</strong> — Save As</li>
+            <li><strong>Ctrl/Cmd + S</strong> — save active file</li>
+          </ul>
+        </div>
+      </div>
+      <div class="settings-foot">
+        <button class="btn" id="settingsResetBtn" type="button">Reset defaults</button>
+        <button class="btn" id="settingsCancelBtn" type="button">Cancel</button>
+        <button class="btn primary" id="settingsApplyBtn" type="button">Apply settings</button>
+      </div>
+    </section>
+  </div>
+
+<script>
+(() => {
+  const editor = document.getElementById('editor');
+  const editorWrap = document.querySelector('.editor-wrap');
+  const highlighted = document.getElementById('highlighted');
+  const treeView = document.getElementById('treeView');
+  const issuesView = document.getElementById('issuesView');
+  const status = document.getElementById('status');
+  const modeBadge = document.getElementById('modeBadge');
+  const fileBadge = document.getElementById('fileBadge');
+  const metaInfo = document.getElementById('metaInfo');
+  const reportInfo = document.getElementById('reportInfo');
+  const cursorInfo = document.getElementById('cursorInfo');
+  const fileInput = document.getElementById('fileInput');
+  const folderInput = document.getElementById('folderInput');
+  const formatBtn = document.getElementById('formatBtn');
+  const cancelReadBtn = document.getElementById('cancelReadBtn');
+  const topbar = document.querySelector('.topbar');
+  const layout = document.querySelector('.layout');
+  const side = document.querySelector('.side');
+  const compareContent = document.getElementById('compareContent');
+  const validateBtn = document.getElementById('validateBtn');
+  const releaseSelect = document.getElementById('releaseSelect');
+  const tabFilter = document.getElementById('tabFilter');
+  const searchHistory = document.getElementById('searchHistory');
+  const wholeWordToggle = document.getElementById('wholeWordToggle');
+  const settingsCompactToolbar = document.getElementById('settingCompactToolbar');
+  const settingsRecoveryDrafts = document.getElementById('settingRecoveryDrafts');
+  const settingsBackupBeforeSave = document.getElementById('settingBackupBeforeSave');
+  const settingsConfirmReplaceAll = document.getElementById('settingConfirmReplaceAll');
+  const lineNumbers = document.getElementById('lineNumbers');
+  const regexHighlights = document.getElementById('regexHighlights');
+  const searchInput = document.getElementById('searchInput');
+  const replaceInput = document.getElementById('replaceInput');
+  const regexToggle = document.getElementById('regexToggle');
+  const caseToggle = document.getElementById('caseToggle');
+  const searchStatus = document.getElementById('searchStatus');
+  const tabsView = document.getElementById('tabs');
+  const compareBtn = document.getElementById('compareBtn');
+  const compareSelect = document.getElementById('compareSelect');
+  const compareInfo = document.getElementById('compareInfo');
+  const projectsPanel = document.getElementById('projectsPanel');
+  const projectsView = document.getElementById('projectsView');
+  const projectsInfo = document.getElementById('projectsInfo');
+  const projectsToggle = document.getElementById('projectsToggle');
+  const projectsToolbarToggle = document.getElementById('projectsToolbarToggle');
+  const projectsLeftBtn = document.getElementById('projectsLeftBtn');
+  const projectsRightBtn = document.getElementById('projectsRightBtn');
+  const projectFilter = document.getElementById('projectFilter');
+  const settingsBackdrop = document.getElementById('settingsBackdrop');
+  const settingsSyntax = document.getElementById('settingSyntax');
+  const settingsLineNumbers = document.getElementById('settingLineNumbers');
+  const settingsRegexHighlights = document.getElementById('settingRegexHighlights');
+  const settingsWordWrap = document.getElementById('settingWordWrap');
+  const settingsTabSize = document.getElementById('settingTabSize');
+  const settingsFontSize = document.getElementById('settingFontSize');
+  const settingsLineHeight = document.getElementById('settingLineHeight');
+  const settingsTheme = document.getElementById('settingTheme');
+  const settingsStructure = document.getElementById('settingStructure');
+  const settingsValidator = document.getElementById('settingValidator');
+  const settingsAutoValidate = document.getElementById('settingAutoValidate');
+  const settingsConfirmClose = document.getElementById('settingConfirmClose');
+  const settingsRestoreTabs = document.getElementById('settingRestoreTabs');
+  const settingsStatusBadges = document.getElementById('settingStatusBadges');
+  const settingsFocusMode = document.getElementById('settingFocusMode');
+  const settingsSearchTools = document.getElementById('settingSearchTools');
+  const settingsFormattingTools = document.getElementById('settingFormattingTools');
+  const settingsCompareTools = document.getElementById('settingCompareTools');
+  const settingsSampleTools = document.getElementById('settingSampleTools');
+  const settingsProjects = document.getElementById('settingProjects');
+  const settingsLargeLimit = document.getElementById('settingLargeLimit');
+  const settingsHugeLimit = document.getElementById('settingHugeLimit');
+  const focusBtn = document.getElementById('focusBtn');
+  const restoreBackupBtn = document.getElementById('restoreBackupBtn');
+
+  let currentFileName = 'untitled.json';
+  let liveRefreshTimer = null;
+  let performanceMode = 'live';
+  let tabs = [{ id: 1, storageId: createStorageId(), name: 'untitled.json', filePath: null, text: '', savedText: '', dirty: false, scrollTop: 0, scrollLeft: 0, selectionStart: 0, selectionEnd: 0 }];
+  let activeTabId = 1;
+  let nextTabId = 2;
+  let projects = [];
+  let nextProjectId = 1;
+  let projectsCollapsed = false;
+  let projectsDock = 'left';
+  let searchIndex = -1;
+  let compareTabId = null;
+  let draggedTabId = null;
+  let currentSearchMatch = null;
+  let currentSearchOrdinal = null;
+  let visualLineStarts = [];
+  let wrapMeasure = null;
+  let searchHistoryValues = [];
+  let selectedRelease = 'H';
+  let searchDocumentRevision = 0;
+  let searchCountKey = '';
+  let searchMatchTotal = null;
+  let searchCountGeneration = 0;
+  let searchCountTimer = null;
+  let searchCountInProgress = false;
+
+  const isAndroid = /Android/i.test(navigator.userAgent || '');
+  const isTouchDevice =
+    isAndroid ||
+    (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+    ('ontouchstart' in window) ||
+    (navigator.maxTouchPoints > 0);
+
+  const SETTINGS_KEY = 'cdda-json-editor-settings-v3';
+  const SESSION_KEY = 'cdda-json-editor-session-v3';
+  const RECOVERY_KEY = 'cdda-json-editor-recovery-v3';
+  const BACKUP_KEY = 'cdda-json-editor-backup-v3';
+  const RECOVERY_INDEX_KEY = `${RECOVERY_KEY}-index-v2`;
+  const BACKUP_INDEX_KEY = `${BACKUP_KEY}-index-v2`;
+  const PROJECTS_VIEW_KEY = 'cdda-json-editor-projects-view-v1';
+  const PROJECTS_DOCK_KEY = 'cdda-json-editor-projects-dock-v1';
+  const LEGACY_SAMPLE_TAB_NAMES = new Set(['Opened sample_achievement_H.json', 'sample_achievement_H.json']);
+  const MAX_SESSION_TAB_CHARS = 2000000;
+  const MAX_BACKUP_ENTRIES = 20;
+  const DEFAULT_SETTINGS = Object.freeze({
+    syntaxColors: true,
+    lineNumbers: true,
+    regexHighlights: true,
+    wordWrap: false,
+    tabSize: 2,
+    fontSize: 14,
+    lineHeight: 1.55,
+    theme: 'midnight',
+    structurePanel: true,
+    validatorPanel: true,
+    autoValidate: false,
+    confirmClose: true,
+    restoreTabs: false,
+    statusBadges: true,
+    compactToolbar: false,
+    focusMode: false,
+    recoveryDrafts: true,
+    backupBeforeSave: true,
+    confirmReplaceAll: true,
+    searchTools: true,
+    formattingTools: true,
+    compareTools: true,
+    sampleTools: true,
+    projectsPanel: true,
+    largeFileLimit: 250000,
+    hugeFileLimit: 1000000
+  });
+  let settings = { ...DEFAULT_SETTINGS };
+  let LARGE_FILE_CHAR_LIMIT = DEFAULT_SETTINGS.largeFileLimit;
+  let HUGE_FILE_CHAR_LIMIT = DEFAULT_SETTINGS.hugeFileLimit;
+  let validationTimer = null;
+  let workspaceSaveTimer = null;
+  let recoverySaveTimer = null;
+  let activeFileReader = null;
+  let readCancelled = false;
+  const MAX_LINE_NUMBER_RENDER = 100000;
+  const MAX_WRAPPED_LINE_NUMBER_RENDER = 25000;
+  const MAX_SEARCH_HIGHLIGHT_CHARS = 2000000;
+  const SEARCH_COUNT_BATCH_SIZE = 4000;
+  const SEARCH_COUNT_YIELD_MS = 12;
+  let scrollFrame = 0;
+  let compareUpdateFrame = 0;
+
+  function loadSettings(){
+    try {
+      const stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+      settings = { ...DEFAULT_SETTINGS, ...stored };
+    } catch (error) {
+      settings = { ...DEFAULT_SETTINGS };
+    }
+    if (!Number.isFinite(Number(settings.largeFileLimit)) || !Number.isFinite(Number(settings.hugeFileLimit)) || Number(settings.largeFileLimit) >= Number(settings.hugeFileLimit)) {
+      settings.largeFileLimit = DEFAULT_SETTINGS.largeFileLimit;
+      settings.hugeFileLimit = DEFAULT_SETTINGS.hugeFileLimit;
+    }
+    LARGE_FILE_CHAR_LIMIT = Number(settings.largeFileLimit);
+    HUGE_FILE_CHAR_LIMIT = Number(settings.hugeFileLimit);
+  }
+
+  function fillSettingsControls(values = settings){
+    settingsSyntax.checked = Boolean(values.syntaxColors);
+    settingsLineNumbers.checked = Boolean(values.lineNumbers);
+    settingsRegexHighlights.checked = Boolean(values.regexHighlights);
+    settingsWordWrap.checked = Boolean(values.wordWrap);
+    settingsTabSize.value = String(values.tabSize);
+    settingsFontSize.value = String(values.fontSize);
+    settingsLineHeight.value = String(values.lineHeight);
+    settingsTheme.value = values.theme;
+    settingsStructure.checked = Boolean(values.structurePanel);
+    settingsValidator.checked = Boolean(values.validatorPanel);
+    settingsAutoValidate.checked = Boolean(values.autoValidate);
+    settingsConfirmClose.checked = Boolean(values.confirmClose);
+    settingsRestoreTabs.checked = Boolean(values.restoreTabs);
+    settingsStatusBadges.checked = Boolean(values.statusBadges);
+    settingsCompactToolbar.checked = Boolean(values.compactToolbar);
+    settingsFocusMode.checked = Boolean(values.focusMode);
+    settingsRecoveryDrafts.checked = Boolean(values.recoveryDrafts);
+    settingsBackupBeforeSave.checked = Boolean(values.backupBeforeSave);
+    settingsConfirmReplaceAll.checked = Boolean(values.confirmReplaceAll);
+    settingsSearchTools.checked = Boolean(values.searchTools);
+    settingsFormattingTools.checked = Boolean(values.formattingTools);
+    settingsCompareTools.checked = Boolean(values.compareTools);
+    settingsSampleTools.checked = Boolean(values.sampleTools);
+    settingsProjects.checked = Boolean(values.projectsPanel);
+    settingsLargeLimit.value = String(values.largeFileLimit);
+    settingsHugeLimit.value = String(values.hugeFileLimit);
+  }
+
+  function readSettingsControls(){
+    const largeFileLimit = Math.max(10000, Number(settingsLargeLimit.value) || DEFAULT_SETTINGS.largeFileLimit);
+    const hugeFileLimit = Math.max(50000, Number(settingsHugeLimit.value) || DEFAULT_SETTINGS.hugeFileLimit);
+    return {
+      syntaxColors: settingsSyntax.checked,
+      lineNumbers: settingsLineNumbers.checked,
+      regexHighlights: settingsRegexHighlights.checked,
+      wordWrap: settingsWordWrap.checked,
+      tabSize: Number(settingsTabSize.value) || DEFAULT_SETTINGS.tabSize,
+      fontSize: Number(settingsFontSize.value) || DEFAULT_SETTINGS.fontSize,
+      lineHeight: Number(settingsLineHeight.value) || DEFAULT_SETTINGS.lineHeight,
+      theme: settingsTheme.value || DEFAULT_SETTINGS.theme,
+      structurePanel: settingsStructure.checked,
+      validatorPanel: settingsValidator.checked,
+      autoValidate: settingsAutoValidate.checked,
+      confirmClose: settingsConfirmClose.checked,
+      restoreTabs: settingsRestoreTabs.checked,
+      statusBadges: settingsStatusBadges.checked,
+      compactToolbar: settingsCompactToolbar.checked,
+      focusMode: settingsFocusMode.checked,
+      recoveryDrafts: settingsRecoveryDrafts.checked,
+      backupBeforeSave: settingsBackupBeforeSave.checked,
+      confirmReplaceAll: settingsConfirmReplaceAll.checked,
+      searchTools: settingsSearchTools.checked,
+      formattingTools: settingsFormattingTools.checked,
+      compareTools: settingsCompareTools.checked,
+      sampleTools: settingsSampleTools.checked,
+      projectsPanel: settingsProjects.checked,
+      largeFileLimit: Math.min(largeFileLimit, hugeFileLimit - 1),
+      hugeFileLimit: Math.max(hugeFileLimit, largeFileLimit + 1)
+    };
+  }
+
+  function applySettings(nextSettings, persist = true){
+    settings = { ...DEFAULT_SETTINGS, ...nextSettings };
+    if (settings.largeFileLimit >= settings.hugeFileLimit) {
+      settings.largeFileLimit = DEFAULT_SETTINGS.largeFileLimit;
+      settings.hugeFileLimit = DEFAULT_SETTINGS.hugeFileLimit;
+    }
+    LARGE_FILE_CHAR_LIMIT = Number(settings.largeFileLimit);
+    HUGE_FILE_CHAR_LIMIT = Number(settings.hugeFileLimit);
+    editor.setAttribute('wrap', settings.wordWrap ? 'soft' : 'off');
+    [editor, highlighted, regexHighlights, lineNumbers, compareContent].forEach(node => {
+      if (node) {
+        node.style.tabSize = String(settings.tabSize);
+        node.style.fontSize = `${settings.fontSize}px`;
+        node.style.lineHeight = String(settings.lineHeight);
+      }
+    });
+    document.body.classList.remove('theme-slate', 'theme-contrast');
+    if (settings.theme === 'slate') document.body.classList.add('theme-slate');
+    if (settings.theme === 'contrast') document.body.classList.add('theme-contrast');
+    document.body.classList.toggle('focus-mode', Boolean(settings.focusMode));
+    editorWrap.classList.toggle('focus-editor', Boolean(settings.focusMode));
+    focusBtn.textContent = settings.focusMode ? 'Exit focus' : 'Focus view';
+    focusBtn.title = settings.focusMode ? 'Restore panels and toolbars' : 'Hide panels and toolbars for a larger editing view';
+    editorWrap.classList.toggle('no-syntax', !settings.syntaxColors);
+    editorWrap.classList.toggle('no-line-numbers', !settings.lineNumbers);
+    editorWrap.classList.toggle('no-regex-highlights', !settings.regexHighlights);
+    editorWrap.classList.toggle('word-wrap', settings.wordWrap);
+    topbar.classList.toggle('hide-status-badges', !settings.statusBadges);
+    topbar.classList.toggle('compact-toolbar', settings.compactToolbar);
+    document.querySelectorAll('.search-tool').forEach(node => node.classList.toggle('hidden', !settings.searchTools));
+    document.querySelectorAll('.formatting-tool').forEach(node => node.classList.toggle('hidden', !settings.formattingTools));
+    document.querySelectorAll('.compare-tool').forEach(node => node.classList.toggle('hidden', !settings.compareTools));
+    document.querySelectorAll('.sample-tool').forEach(node => node.classList.toggle('hidden', !settings.sampleTools));
+    document.querySelectorAll('.project-tool').forEach(node => node.classList.toggle('hidden', !settings.projectsPanel));
+    const split = document.querySelector('.split');
+    const side = document.querySelector('.side');
+    split.classList.toggle('structure-hidden', !settings.structurePanel);
+    split.classList.toggle('validator-hidden', !settings.validatorPanel);
+    split.classList.toggle('both-hidden', !settings.structurePanel && !settings.validatorPanel);
+    validateBtn.classList.toggle('hidden', !settings.validatorPanel);
+    if (!settings.compareTools) {
+      layout.classList.remove('compare-active');
+      compareBtn.textContent = 'Compare tabs';
+    }
+    layout.classList.toggle('panels-hidden', !settings.structurePanel && !settings.validatorPanel);
+    side.classList.toggle('panels-hidden', !settings.structurePanel && !settings.validatorPanel);
+    updateProjectsPanel();
+    if (persist) {
+      try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (error) {}
+      if (settings.restoreTabs) schedulePersistTabs();
+      if (!settings.recoveryDrafts) clearRecoveryData();
+    }
+    refreshEditorView();
+  }
+
+  function loadProjectsViewState(){
+    try {
+      projectsCollapsed = localStorage.getItem(PROJECTS_VIEW_KEY) === 'collapsed';
+      projectsDock = localStorage.getItem(PROJECTS_DOCK_KEY) === 'right' ? 'right' : 'left';
+    } catch (error) {
+      projectsCollapsed = false;
+      projectsDock = 'left';
+    }
+  }
+
+  function updateProjectsPanel(){
+    const visible = Boolean(settings.projectsPanel);
+    layout.classList.toggle('projects-collapsed', !visible || projectsCollapsed);
+    layout.classList.toggle('projects-right', projectsDock === 'right');
+    projectsPanel.classList.toggle('hidden', !visible);
+    projectsToggle.classList.toggle('hidden', !visible);
+    projectsToggle.textContent = projectsCollapsed ? 'Show' : 'Hide';
+    projectsToolbarToggle.classList.toggle('hidden', !visible);
+    projectsToolbarToggle.textContent = projectsCollapsed ? 'Show projects' : 'Hide projects';
+    projectsLeftBtn.disabled = !visible || projectsDock === 'left';
+    projectsRightBtn.disabled = !visible || projectsDock === 'right';
+  }
+
+  function toggleProjectsPanel(){
+    if (!settings.projectsPanel) return;
+    projectsCollapsed = !projectsCollapsed;
+    try { localStorage.setItem(PROJECTS_VIEW_KEY, projectsCollapsed ? 'collapsed' : 'open'); } catch (error) {}
+    updateProjectsPanel();
+  }
+
+  function moveProjectsDock(dock){
+    if (dock !== 'left' && dock !== 'right') return;
+    projectsDock = dock;
+    try { localStorage.setItem(PROJECTS_DOCK_KEY, projectsDock); } catch (error) {}
+    updateProjectsPanel();
+  }
+
+  function toggleFocusMode(){
+    applySettings({ ...settings, focusMode: !settings.focusMode });
+    setStatus(settings.focusMode ? 'Focus view enabled' : 'Focus view restored', 'ok');
+  }
+
+  function openSettings(){
+    fillSettingsControls();
+    settingsBackdrop.classList.remove('hidden');
+    settingsSyntax.focus();
+  }
+
+  function closeSettings(){
+    settingsBackdrop.classList.add('hidden');
+  }
+
+  function createStorageId(){
+    try {
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+    } catch (error) {}
+    return `tab-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  function normalizeTabState(tab, index = 0){
+    const text = typeof tab.text === 'string' ? tab.text : '';
+    return {
+      id: Number.isFinite(Number(tab.id)) ? Number(tab.id) : index + 1,
+      storageId: typeof tab.storageId === 'string' && tab.storageId ? tab.storageId : createStorageId(),
+      name: typeof tab.name === 'string' && tab.name ? tab.name : 'untitled.json',
+      filePath: typeof tab.filePath === 'string' && tab.filePath ? tab.filePath : null,
+      text,
+      savedText: typeof tab.savedText === 'string' ? tab.savedText : text,
+      dirty: Boolean(tab.dirty),
+      scrollTop: Number(tab.scrollTop) || 0,
+      scrollLeft: Number(tab.scrollLeft) || 0,
+      selectionStart: Number(tab.selectionStart) || 0,
+      selectionEnd: Number(tab.selectionEnd) || 0
+    };
+  }
+
+  function snapshotTab(tab){
+    return normalizeTabState(tab, Math.max(0, Number(tab.id) - 1));
+  }
+
+  function readStoredJSON(key, fallback){
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+      return parsed === null ? fallback : parsed;
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  function persistTabs(){
+    if (!settings.restoreTabs) return;
+    const storableTabs = tabs
+      .filter(tab => typeof tab.text === 'string' && tab.text.length <= MAX_SESSION_TAB_CHARS)
+      .map(snapshotTab);
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ activeTabId, tabs: storableTabs }));
+    } catch (error) {
+      setStatus('Workspace not saved; browser storage is full', 'warn');
+    }
+  }
+
+  function schedulePersistTabs(){
+    clearTimeout(workspaceSaveTimer);
+    workspaceSaveTimer = setTimeout(persistTabs, 350);
+  }
+
+  function recoveryEntryKey(storageId){
+    return `${RECOVERY_KEY}:tab:${storageId}`;
+  }
+
+  function readRecoveryIndex(){
+    const index = readStoredJSON(RECOVERY_INDEX_KEY, null);
+    return index && Array.isArray(index.tabs) ? index : { version: 2, activeStorageId: null, tabs: [] };
+  }
+
+  function writeRecoveryIndex(index){
+    if (!index.tabs.length) localStorage.removeItem(RECOVERY_INDEX_KEY);
+    else localStorage.setItem(RECOVERY_INDEX_KEY, JSON.stringify(index));
+  }
+
+  function clearRecoveryData(){
+    const index = readRecoveryIndex();
+    index.tabs.forEach(entry => localStorage.removeItem(recoveryEntryKey(entry.storageId)));
+    localStorage.removeItem(RECOVERY_INDEX_KEY);
+    localStorage.removeItem(RECOVERY_KEY);
+  }
+
+  function removeRecoveryForTab(tab){
+    if (!tab) return;
+    const index = readRecoveryIndex();
+    localStorage.removeItem(recoveryEntryKey(tab.storageId));
+    index.tabs = index.tabs.filter(entry => entry.storageId !== tab.storageId);
+    if (index.activeStorageId === tab.storageId) index.activeStorageId = index.tabs[0]?.storageId || null;
+    try { writeRecoveryIndex(index); } catch (error) {}
+
+    const legacy = readStoredJSON(RECOVERY_KEY, null);
+    if (legacy && legacy.name === tab.name) localStorage.removeItem(RECOVERY_KEY);
+  }
+
+  function persistRecoveryDraft(){
+    clearTimeout(recoverySaveTimer);
+    if (!settings.recoveryDrafts) return;
+
+    const previousIndex = readRecoveryIndex();
+    const dirtyTabs = tabs.filter(tab => tab && tab.dirty);
+    const dirtyIds = new Set(dirtyTabs.map(tab => tab.storageId));
+    previousIndex.tabs.forEach(entry => {
+      if (!dirtyIds.has(entry.storageId)) localStorage.removeItem(recoveryEntryKey(entry.storageId));
+    });
+
+    const storedEntries = [];
+    let skipped = 0;
+    let failed = 0;
+    for (const tab of dirtyTabs) {
+      if (tab.text.length > MAX_SESSION_TAB_CHARS) {
+        localStorage.removeItem(recoveryEntryKey(tab.storageId));
+        skipped += 1;
+        continue;
+      }
+      try {
+        const savedAt = Date.now();
+        localStorage.setItem(recoveryEntryKey(tab.storageId), JSON.stringify({ ...snapshotTab(tab), savedAt }));
+        storedEntries.push({ storageId: tab.storageId, name: tab.name, savedAt });
+      } catch (error) {
+        failed += 1;
+      }
+    }
+
+    try {
+      writeRecoveryIndex({
+        version: 2,
+        activeStorageId: activeTab()?.storageId || storedEntries[0]?.storageId || null,
+        tabs: storedEntries
+      });
+      localStorage.removeItem(RECOVERY_KEY);
+    } catch (error) {
+      failed += 1;
+    }
+
+    if (failed) setStatus('Some recovery drafts could not be saved', 'warn');
+    else if (skipped) setStatus('Huge tabs are too large for local recovery', 'warn');
+  }
+
+  function scheduleRecoveryDraft(){
+    clearTimeout(recoverySaveTimer);
+    recoverySaveTimer = setTimeout(persistRecoveryDraft, 300);
+  }
+
+  function recoverDraft(){
+    if (!settings.recoveryDrafts) return false;
+    try {
+      const index = readRecoveryIndex();
+      const recovered = index.tabs
+        .map(entry => readStoredJSON(recoveryEntryKey(entry.storageId), null))
+        .filter(saved => saved && typeof saved.text === 'string')
+        .map((saved, indexValue) => ({ ...normalizeTabState(saved, indexValue), dirty: true }))
+        .filter(tab => !LEGACY_SAMPLE_TAB_NAMES.has(tab.name));
+
+      if (recovered.length) {
+        const label = recovered.length === 1 ? recovered[0].name : `${recovered.length} unsaved tabs`;
+        if (!window.confirm(`Recover ${label} from the previous session?`)) return false;
+        tabs = recovered;
+        const activeStorageId = index.activeStorageId;
+        const active = recovered.find(tab => tab.storageId === activeStorageId) || recovered[0];
+        activeTabId = active.id;
+        nextTabId = Math.max(...recovered.map(tab => tab.id)) + 1;
+        setEditorContent(active.text, active.name, false, true);
+        active.dirty = true;
+        restoreTabView(active, active);
+        renderTabs();
+        setStatus(recovered.length === 1 ? 'Recovery draft restored' : `${recovered.length} recovery drafts restored`, 'warn');
+        return true;
+      }
+
+      const legacy = readStoredJSON(RECOVERY_KEY, null);
+      if (!legacy || typeof legacy.text !== 'string' || !window.confirm(`Recover the unsaved draft for ${legacy.name || 'the previous file'}?`)) return false;
+      const recoveredTab = normalizeTabState({ ...legacy, id: 1, savedText: '', dirty: true }, 0);
+      tabs = [recoveredTab];
+      activeTabId = recoveredTab.id;
+      nextTabId = recoveredTab.id + 1;
+      setEditorContent(recoveredTab.text, recoveredTab.name, false, true);
+      recoveredTab.dirty = true;
+      restoreTabView(recoveredTab, recoveredTab);
+      renderTabs();
+      scheduleRecoveryDraft();
+      setStatus('Recovery draft restored', 'warn');
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function backupEntryKey(storageId){
+    return `${BACKUP_KEY}:tab:${storageId}`;
+  }
+
+  function readBackupIndex(){
+    const index = readStoredJSON(BACKUP_INDEX_KEY, null);
+    return index && Array.isArray(index.entries) ? index : { version: 2, entries: [] };
+  }
+
+  function storePreviousSaveBackup(tab){
+    if (!settings.backupBeforeSave || !tab || typeof tab.savedText !== 'string' || tab.savedText === tab.text) return false;
+    try {
+      const savedAt = Date.now();
+      const backup = { storageId: tab.storageId, name: tab.name, text: tab.savedText, savedAt };
+      localStorage.setItem(backupEntryKey(tab.storageId), JSON.stringify(backup));
+      const index = readBackupIndex();
+      const previousEntries = index.entries.filter(entry => entry.storageId !== tab.storageId);
+      const entries = [{ storageId: tab.storageId, name: tab.name, savedAt }, ...previousEntries].slice(0, MAX_BACKUP_ENTRIES);
+      previousEntries.slice(MAX_BACKUP_ENTRIES - 1).forEach(entry => localStorage.removeItem(backupEntryKey(entry.storageId)));
+      localStorage.setItem(BACKUP_INDEX_KEY, JSON.stringify({ version: 2, entries }));
+      localStorage.removeItem(BACKUP_KEY);
+      updateRestoreBackupButton();
+      return true;
+    } catch (error) {
+      setStatus('Previous save backup could not be stored', 'warn');
+      return false;
+    }
+  }
+
+  function findBackupForTab(tab){
+    if (!tab) return null;
+    const direct = readStoredJSON(backupEntryKey(tab.storageId), null);
+    if (direct && typeof direct.text === 'string') return direct;
+
+    const index = readBackupIndex();
+    const matching = index.entries
+      .filter(entry => entry.name === tab.name)
+      .sort((a, b) => Number(b.savedAt) - Number(a.savedAt));
+    for (const entry of matching) {
+      const backup = readStoredJSON(backupEntryKey(entry.storageId), null);
+      if (backup && typeof backup.text === 'string') return backup;
+    }
+
+    const legacy = readStoredJSON(BACKUP_KEY, null);
+    return legacy && legacy.name === tab.name && typeof legacy.text === 'string' ? legacy : null;
+  }
+
+  function updateRestoreBackupButton(){
+    restoreBackupBtn.disabled = !findBackupForTab(activeTab());
+  }
+
+  function restorePreviousSave(){
+    const tab = activeTab();
+    const backup = findBackupForTab(tab);
+    if (!tab || !backup) {
+      setStatus('No previous save is available for this tab', 'warn');
+      updateRestoreBackupButton();
+      return;
+    }
+    if (!window.confirm(`Restore the previous saved version of ${tab.name}? Current unsaved edits will be replaced.`)) return;
+    commitTextChange(backup.text);
+    editor.focus();
+    editor.setSelectionRange(0, 0);
+    editor.scrollTop = 0;
+    editor.scrollLeft = 0;
+    syncActiveTab();
+    schedulePersistTabs();
+    setStatus('Previous save restored; save again to keep it', 'warn');
+  }
+
+  function restoreTabs(){
+    if (!settings.restoreTabs) return false;
+    try {
+      const saved = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+      if (!saved || !Array.isArray(saved.tabs) || !saved.tabs.length) return false;
+      const restored = saved.tabs
+        .filter(tab => tab && typeof tab.name === 'string' && typeof tab.text === 'string' && tab.text.length <= MAX_SESSION_TAB_CHARS)
+        .map(normalizeTabState)
+        .filter(tab => !LEGACY_SAMPLE_TAB_NAMES.has(tab.name));
+      if (!restored.length) return false;
+      tabs = restored;
+      activeTabId = restored.some(tab => tab.id === Number(saved.activeTabId)) ? Number(saved.activeTabId) : restored[0].id;
+      nextTabId = Math.max(...restored.map(tab => tab.id)) + 1;
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function activeTab(){
+    return tabs.find(tab => tab.id === activeTabId) || tabs[0];
+  }
+
+  function syncActiveTab(){
+    const tab = activeTab();
+    if (!tab) return;
+    tab.text = editor.value;
+    tab.name = currentFileName;
+    tab.scrollTop = editor.scrollTop;
+    tab.scrollLeft = editor.scrollLeft;
+    tab.selectionStart = editor.selectionStart || 0;
+    tab.selectionEnd = editor.selectionEnd || tab.selectionStart;
+  }
+
+  function rememberActiveView(){
+    if (document.activeElement !== editor) return;
+    syncActiveTab();
+    schedulePersistTabs();
+    updateCursorInfo();
+  }
+
+  function restoreTabView(tab, state = tab){
+    if (!tab) return;
+    const start = Math.max(0, Math.min(Number(state.selectionStart) || 0, editor.value.length));
+    const end = Math.max(start, Math.min(Number(state.selectionEnd) || start, editor.value.length));
+    editor.setSelectionRange(start, end);
+    editor.scrollTop = Math.max(0, Number(state.scrollTop) || 0);
+    editor.scrollLeft = Math.max(0, Number(state.scrollLeft) || 0);
+    syncScroll();
+  }
+
+  function renderTabs(){
+    tabsView.querySelectorAll('.tab').forEach(node => node.remove());
+    const newButton = document.getElementById('newTabBtn');
+    tabs.forEach(tab => {
+      const node = document.createElement('div');
+      node.className = `tab${tab.id === activeTabId ? ' active' : ''}`;
+      node.dataset.tabId = String(tab.id);
+      node.tabIndex = 0;
+      node.setAttribute('role', 'button');
+      node.draggable = true;
+      const name = document.createElement('span');
+      name.className = 'tab-name';
+      name.textContent = `${tab.dirty ? '• ' : ''}${tab.name}`;
+      const filter = tabFilter.value.trim().toLowerCase();
+      node.classList.toggle('tab-hidden', Boolean(filter) && !tab.name.toLowerCase().includes(filter));
+      const close = document.createElement('button');
+      close.className = 'tab-close';
+      close.type = 'button';
+      close.title = 'Close tab';
+      close.textContent = '×';
+      close.addEventListener('click', event => {
+        event.stopPropagation();
+        closeTab(tab.id);
+      });
+      node.append(name, close);
+      node.addEventListener('click', () => switchTab(tab.id));
+      node.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') switchTab(tab.id);
+      });
+      node.addEventListener('dragstart', event => {
+        draggedTabId = tab.id;
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', String(tab.id));
+      });
+      node.addEventListener('dragover', event => {
+        if (draggedTabId !== null && draggedTabId !== tab.id) {
+          event.preventDefault();
+          node.classList.add('drag-over');
+        }
+      });
+      node.addEventListener('dragleave', () => node.classList.remove('drag-over'));
+      node.addEventListener('drop', event => {
+        event.preventDefault();
+        node.classList.remove('drag-over');
+        reorderTab(draggedTabId, tab.id);
+      });
+      node.addEventListener('dragend', () => {
+        draggedTabId = null;
+        tabsView.querySelectorAll('.tab').forEach(item => item.classList.remove('drag-over'));
+      });
+      tabsView.insertBefore(node, newButton);
+    });
+    renderCompareOptions();
+    tabsView.classList.toggle('tab-filtering', Boolean(tabFilter.value.trim()));
+    updateRestoreBackupButton();
+  }
+
+  function reorderTab(fromId, toId){
+    if (fromId === null || fromId === toId) return;
+    const fromIndex = tabs.findIndex(tab => tab.id === fromId);
+    const toIndex = tabs.findIndex(tab => tab.id === toId);
+    if (fromIndex < 0 || toIndex < 0) return;
+    const [moved] = tabs.splice(fromIndex, 1);
+    tabs.splice(toIndex, 0, moved);
+    draggedTabId = null;
+    renderTabs();
+    schedulePersistTabs();
+  }
+
+  function closeOtherTabs(){
+    syncActiveTab();
+    const others = tabs.filter(tab => tab.id !== activeTabId && (!tab.dirty || !settings.confirmClose || window.confirm(`Close ${tab.name} without saving?`)));
+    others.forEach(removeRecoveryForTab);
+    tabs = tabs.filter(tab => tab.id === activeTabId || !others.includes(tab));
+    renderTabs();
+    schedulePersistTabs();
+  }
+
+  function closeAllTabs(){
+    const dirty = tabs.filter(tab => tab.dirty);
+    if (settings.confirmClose && dirty.length && !window.confirm(`Close ${dirty.length} modified tab${dirty.length === 1 ? '' : 's'} without saving?`)) return;
+    clearRecoveryData();
+    tabs = [{ id: 1, storageId: createStorageId(), name: 'untitled.json', filePath: null, text: '', savedText: '', dirty: false, scrollTop: 0, scrollLeft: 0, selectionStart: 0, selectionEnd: 0 }];
+    activeTabId = 1;
+    nextTabId = 2;
+    setEditorContent('', 'untitled.json', false);
+    renderTabs();
+    setStatus('All tabs closed', 'ok');
+    schedulePersistTabs();
+  }
+
+  function renderCompareOptions(){
+    const alternatives = tabs.filter(tab => tab.id !== activeTabId);
+    compareBtn.disabled = alternatives.length === 0;
+    if (!alternatives.some(tab => tab.id === compareTabId)) {
+      compareTabId = alternatives.length ? alternatives[0].id : null;
+    }
+    compareSelect.innerHTML = '';
+    alternatives.forEach(tab => {
+      const option = document.createElement('option');
+      option.value = String(tab.id);
+      option.textContent = tab.name;
+      option.selected = tab.id === compareTabId;
+      compareSelect.appendChild(option);
+    });
+    if (!alternatives.length) {
+      layout.classList.remove('compare-active');
+      compareBtn.textContent = 'Compare tabs';
+      compareContent.textContent = '';
+      return;
+    }
+    if (layout.classList.contains('compare-active')) scheduleCompareViewUpdate();
+  }
+
+  function updateCompareView(){
+    const tab = tabs.find(item => item.id === compareTabId);
+    if (!tab) return;
+    const savedTop = compareContent.scrollTop;
+    const savedLeft = compareContent.scrollLeft;
+    if (tab.text.length > MAX_SEARCH_HIGHLIGHT_CHARS || editor.value.length > MAX_SEARCH_HIGHLIGHT_CHARS) {
+      compareContent.textContent = tab.text;
+      compareInfo.textContent = 'Diff paused for very large file';
+      compareContent.scrollTop = savedTop;
+      compareContent.scrollLeft = savedLeft;
+      return;
+    }
+    const activeLines = editor.value.split('\n');
+    const compareLines = tab.text.split('\n');
+    const totalLines = Math.max(activeLines.length, compareLines.length);
+    if (totalLines > MAX_LINE_NUMBER_RENDER) {
+      compareContent.textContent = tab.text;
+      compareInfo.textContent = 'Diff paused for very large file';
+      compareContent.scrollTop = savedTop;
+      compareContent.scrollLeft = savedLeft;
+      return;
+    }
+    let changed = 0;
+    const lines = [];
+    for (let index = 0; index < totalLines; index += 1) {
+      const line = compareLines[index] ?? '';
+      const isChanged = line !== (activeLines[index] ?? '');
+      if (isChanged) changed += 1;
+      const lineMarkup = line ? highlightJSON(line).replace(/\n$/, '') : '&nbsp;';
+      lines.push(`<span class="compare-line${isChanged ? ' changed' : ''}"><span class="compare-line-number">${index + 1}</span>${lineMarkup}</span>`);
+    }
+    compareContent.innerHTML = lines.join('');
+    compareInfo.textContent = `${changed} changed line${changed === 1 ? '' : 's'} of ${totalLines}`;
+    compareContent.scrollTop = savedTop;
+    compareContent.scrollLeft = savedLeft;
+  }
+
+  function scheduleCompareViewUpdate(){
+    if (!layout.classList.contains('compare-active') || compareUpdateFrame) return;
+    compareUpdateFrame = requestAnimationFrame(() => {
+      compareUpdateFrame = 0;
+      updateCompareView();
+    });
+  }
+
+  function toggleCompare(){
+    if (compareBtn.disabled) return;
+    layout.classList.toggle('compare-active');
+    const active = layout.classList.contains('compare-active');
+    compareBtn.textContent = active ? 'Close compare' : 'Compare tabs';
+    if (active) updateCompareView();
+  }
+
+  function switchTab(id){
+    if (id === activeTabId) return;
+    syncActiveTab();
+    const tab = tabs.find(item => item.id === id);
+    if (!tab) return;
+    activeTabId = id;
+    const wasDirty = tab.dirty;
+    const savedView = { ...tab };
+    setEditorContent(tab.text, tab.name, false, true);
+    tab.dirty = wasDirty;
+    restoreTabView(tab, savedView);
+    renderTabs();
+    resetSearch();
+    setStatus(`Opened ${tab.name}`, 'ok');
+    schedulePersistTabs();
+  }
+
+  function newTab(name = 'untitled.json', text = '', filePath = null){
+    syncActiveTab();
+    const tab = { id: nextTabId++, storageId: createStorageId(), name, filePath: filePath || null, text, savedText: text, dirty: false, scrollTop: 0, scrollLeft: 0, selectionStart: 0, selectionEnd: 0 };
+    tabs.push(tab);
+    activeTabId = tab.id;
+    setEditorContent(text, name, false);
+    renderTabs();
+    resetSearch();
+    setStatus('New tab', 'ok');
+    schedulePersistTabs();
+  }
+
+  function closeTab(id){
+    const closingTab = tabs.find(tab => tab.id === id);
+    if (closingTab && closingTab.dirty && settings.confirmClose && !window.confirm(`Close ${closingTab.name} without saving?`)) return;
+    removeRecoveryForTab(closingTab);
+    if (tabs.length === 1) {
+      tabs[0].text = '';
+      tabs[0].name = 'untitled.json';
+      tabs[0].filePath = null;
+      tabs[0].storageId = createStorageId();
+      tabs[0].savedText = '';
+      tabs[0].dirty = false;
+      tabs[0].scrollTop = 0;
+      tabs[0].scrollLeft = 0;
+      tabs[0].selectionStart = 0;
+      tabs[0].selectionEnd = 0;
+      activeTabId = tabs[0].id;
+      setEditorContent('', 'untitled.json', false);
+    } else {
+      const index = tabs.findIndex(tab => tab.id === id);
+      tabs = tabs.filter(tab => tab.id !== id);
+      if (id === activeTabId) {
+        const replacement = tabs[Math.max(0, index - 1)] || tabs[0];
+        activeTabId = replacement.id;
+        const wasDirty = replacement.dirty;
+        const savedView = { ...replacement };
+        setEditorContent(replacement.text, replacement.name, false, true);
+        replacement.dirty = wasDirty;
+        restoreTabView(replacement, savedView);
+      }
+    }
+    renderTabs();
+    resetSearch();
+    setStatus('Tab closed', 'ok');
+    schedulePersistTabs();
+  }
+
+  function countLines(text){
+    let lineCount = 1;
+    let position = -1;
+    while ((position = text.indexOf('\n', position + 1)) !== -1) lineCount += 1;
+    return lineCount;
+  }
+
+  function getWrapMeasure(){
+    if (wrapMeasure) return wrapMeasure;
+    wrapMeasure = document.createElement('div');
+    wrapMeasure.setAttribute('aria-hidden', 'true');
+    Object.assign(wrapMeasure.style, {
+      position: 'absolute',
+      left: '-100000px',
+      top: '0',
+      visibility: 'hidden',
+      pointerEvents: 'none',
+      whiteSpace: 'pre-wrap',
+      overflowWrap: 'anywhere',
+      wordBreak: 'break-word'
+    });
+    document.body.appendChild(wrapMeasure);
+    return wrapMeasure;
+  }
+
+  function configureWrapMeasure(){
+    const measure = getWrapMeasure();
+    const styles = getComputedStyle(editor);
+    const paddingLeft = parseFloat(styles.paddingLeft) || 0;
+    const paddingRight = parseFloat(styles.paddingRight) || 0;
+    measure.style.width = `${Math.max(1, editor.clientWidth - paddingLeft - paddingRight)}px`;
+    measure.style.font = styles.font;
+    measure.style.fontSize = styles.fontSize;
+    measure.style.fontFamily = styles.fontFamily;
+    measure.style.fontWeight = styles.fontWeight;
+    measure.style.lineHeight = styles.lineHeight;
+    measure.style.letterSpacing = styles.letterSpacing;
+    measure.style.tabSize = String(settings.tabSize);
+    measure.style.whiteSpace = settings.wordWrap ? 'pre-wrap' : 'pre';
+    return measure;
+  }
+
+  function measureWrappedRows(textValue, measure = configureWrapMeasure()){
+    measure.textContent = textValue || ' ';
+    const lineHeight = parseFloat(getComputedStyle(editor).lineHeight) || 21.7;
+    const height = measure.getBoundingClientRect().height || lineHeight;
+    return Math.max(1, Math.round(height / lineHeight));
+  }
+
+  function renderLineNumbers(){
+    const lineCount = countLines(editor.value);
+    visualLineStarts = [];
+
+    if (
+      settings.wordWrap &&
+      performanceMode !== 'huge' &&
+      lineCount <= MAX_WRAPPED_LINE_NUMBER_RENDER
+    ) {
+      const lines = editor.value.split('\n');
+      const renderedNumbers = [];
+      const measure = configureWrapMeasure();
+      let visualLine = 0;
+      lines.forEach((line, index) => {
+        visualLineStarts[index] = visualLine;
+        const rowCount = measureWrappedRows(line, measure);
+        renderedNumbers.push(String(index + 1));
+        for (let row = 1; row < rowCount; row += 1) renderedNumbers.push('');
+        visualLine += rowCount;
+      });
+      lineNumbers.textContent = renderedNumbers.join('\n');
+      lineNumbers.title = 'Line numbers include wrapped visual rows';
+    } else if (lineCount > MAX_LINE_NUMBER_RENDER) {
+      lineNumbers.textContent = `1\n…\n${lineCount}`;
+      lineNumbers.title = `${lineCount.toLocaleString()} lines; intermediate numbers hidden for performance`;
+    } else {
+      lineNumbers.textContent = Array.from({ length: lineCount }, (_, index) => index + 1).join('\n');
+      lineNumbers.removeAttribute('title');
+    }
+    lineNumbers.scrollTop = editor.scrollTop;
+  }
+
+  function getVisualLinePosition(offset){
+    const safeOffset = Math.max(0, Math.min(Number(offset) || 0, editor.value.length));
+    const lineStart = editor.value.lastIndexOf('\n', safeOffset - 1) + 1;
+    const logicalLine = editor.value.slice(0, lineStart).split('\n').length - 1;
+    let visualLine = visualLineStarts[logicalLine] ?? logicalLine;
+
+    if (settings.wordWrap && visualLineStarts.length) {
+      visualLine += measureWrappedRows(editor.value.slice(lineStart, safeOffset)) - 1;
+    }
+
+    return { logicalLine, visualLine };
+  }
+
+  function scrollToOffset(offset){
+    const { visualLine } = getVisualLinePosition(offset);
+    const lineHeight = parseFloat(getComputedStyle(editor).lineHeight) || 21.7;
+    const target = visualLine * lineHeight - editor.clientHeight * 0.35;
+    editor.scrollTop = Math.max(0, target);
+  }
+
+  function getSearchCountKey(){
+    return JSON.stringify([
+      searchDocumentRevision,
+      searchInput.value,
+      Boolean(regexToggle.checked),
+      Boolean(caseToggle.checked),
+      Boolean(wholeWordToggle.checked)
+    ]);
+  }
+
+  function cancelSearchCountTask(){
+    searchCountGeneration += 1;
+    if (searchCountTimer !== null) {
+      clearTimeout(searchCountTimer);
+      searchCountTimer = null;
+    }
+    searchCountInProgress = false;
+  }
+
+  function invalidateSearchCount(){
+    cancelSearchCountTask();
+    searchCountKey = '';
+    searchMatchTotal = null;
+    currentSearchOrdinal = null;
+  }
+
+  function markSearchDocumentChanged(){
+    searchDocumentRevision += 1;
+    searchIndex = -1;
+    currentSearchMatch = null;
+    currentSearchOrdinal = null;
+    invalidateSearchCount();
+  }
+
+  function formatSearchMatchCount(count){
+    const total = Math.max(0, Number(count) || 0);
+    return `${total.toLocaleString()} match${total === 1 ? '' : 'es'}`;
+  }
+
+  function updateHugeSearchStatus(){
+    if (!searchInput.value) {
+      searchStatus.textContent = 'No search';
+      return;
+    }
+    if (searchMatchTotal === null) {
+      searchStatus.textContent = searchCountInProgress ? 'Counting matches…' : 'Counting matches…';
+      return;
+    }
+    const countText = formatSearchMatchCount(searchMatchTotal);
+    searchStatus.textContent = currentSearchMatch
+      ? `Match found • ${countText} • huge-file mode`
+      : `${countText} • huge-file mode`;
+  }
+
+  function startSearchMatchCount(){
+    const key = getSearchCountKey();
+    if (searchCountKey === key && (searchCountInProgress || searchMatchTotal !== null)) return;
+
+    cancelSearchCountTask();
+    const regex = regexForSearch();
+    searchCountKey = key;
+    searchMatchTotal = null;
+    currentSearchOrdinal = null;
+    if (!regex) return;
+
+    const generation = searchCountGeneration;
+    const documentRevision = searchDocumentRevision;
+    const textValue = editor.value;
+    let count = 0;
+    searchCountInProgress = true;
+    searchStatus.textContent = 'Counting matches…';
+
+    const isCurrent = () =>
+      generation === searchCountGeneration &&
+      documentRevision === searchDocumentRevision &&
+      key === getSearchCountKey();
+
+    const scan = () => {
+      searchCountTimer = null;
+      if (!isCurrent()) return;
+
+      const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now();
+      let steps = 0;
+      let match;
+      while ((match = regex.exec(textValue))) {
+        count += 1;
+        steps += 1;
+        if ((match[0] || '').length === 0) regex.lastIndex = match.index + 1;
+
+        const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
+          ? performance.now()
+          : Date.now();
+        if (steps >= SEARCH_COUNT_BATCH_SIZE || now - startedAt >= SEARCH_COUNT_YIELD_MS) {
+          if (!isCurrent()) return;
+          searchStatus.textContent = `Counting matches… ${count.toLocaleString()} found`;
+          searchCountTimer = window.setTimeout(scan, 0);
+          return;
+        }
+      }
+
+      if (!isCurrent()) return;
+      searchCountInProgress = false;
+      searchMatchTotal = count;
+      updateHugeSearchStatus();
+    };
+
+    searchCountTimer = window.setTimeout(scan, 0);
+  }
+
+  function regexForSearch(){
+    const query = searchInput.value;
+    if (!query) return null;
+    let source = regexToggle.checked ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (wholeWordToggle.checked) source = `\\b(?:${source})\\b`;
+    try {
+      return new RegExp(source, `g${caseToggle.checked ? '' : 'i'}`);
+    } catch (error) {
+      searchStatus.textContent = 'Invalid regex';
+      searchStatus.className = 'search-status';
+      return null;
+    }
+  }
+
+  function findSearchMatches(){
+    const regex = regexForSearch();
+    if (!regex) return [];
+    const matches = [];
+    for (const match of editor.value.matchAll(regex)) {
+      const value = match[0] || '';
+      matches.push({ start: match.index, end: match.index + value.length });
+      if (value.length === 0) regex.lastIndex += 1;
+    }
+    return matches;
+  }
+
+  function renderSearchHighlights(matches){
+    if (!matches.length || performanceMode === 'huge' || editor.value.length > MAX_SEARCH_HIGHLIGHT_CHARS) {
+      regexHighlights.textContent = '';
+      return;
+    }
+    let output = '';
+    let cursor = 0;
+    for (const match of matches) {
+      output += escapeHtml(editor.value.slice(cursor, match.start));
+      output += `<mark>${escapeHtml(editor.value.slice(match.start, match.end))}</mark>`;
+      cursor = match.end;
+    }
+    regexHighlights.innerHTML = output + escapeHtml(editor.value.slice(cursor)) + '\n';
+  }
+
+  function updateSearch(){
+    if (!searchInput.value) {
+      cancelSearchCountTask();
+      searchCountKey = getSearchCountKey();
+      searchMatchTotal = null;
+      currentSearchOrdinal = null;
+      regexHighlights.textContent = '';
+      searchStatus.textContent = 'No search';
+      return [];
+    }
+
+    if (performanceMode === 'huge') {
+      regexHighlights.textContent = '';
+      rememberSearch(searchInput.value);
+      if (!regexForSearch()) {
+        cancelSearchCountTask();
+        searchCountKey = getSearchCountKey();
+        searchMatchTotal = null;
+        currentSearchOrdinal = null;
+        return [];
+      }
+      startSearchMatchCount();
+      updateHugeSearchStatus();
+      return [];
+    }
+
+    cancelSearchCountTask();
+    if (!regexForSearch()) {
+      searchCountKey = getSearchCountKey();
+      searchMatchTotal = null;
+      currentSearchOrdinal = null;
+      regexHighlights.textContent = '';
+      return [];
+    }
+    const matches = findSearchMatches();
+    searchCountKey = getSearchCountKey();
+    searchMatchTotal = matches.length;
+    currentSearchOrdinal = searchIndex >= 0 && searchIndex < matches.length ? searchIndex + 1 : null;
+    renderSearchHighlights(matches);
+    rememberSearch(searchInput.value);
+    if (matches.length && editor.value.length > MAX_SEARCH_HIGHLIGHT_CHARS) {
+      searchStatus.textContent = `${formatSearchMatchCount(matches.length)} • highlight paused`;
+    } else if (currentSearchOrdinal !== null) {
+      searchStatus.textContent = `Match ${currentSearchOrdinal.toLocaleString()} of ${matches.length.toLocaleString()}`;
+    } else {
+      searchStatus.textContent = formatSearchMatchCount(matches.length);
+    }
+    return matches;
+  }
+
+  function findSingleSearchMatch(direction, fromOffset){
+    const regex = regexForSearch();
+    if (!regex) return null;
+    const textValue = editor.value;
+    const startOffset = Math.max(0, Math.min(Number(fromOffset) || 0, textValue.length));
+    const toRange = match => ({
+      start: match.index,
+      end: match.index + (match[0] || '').length
+    });
+
+    if (direction > 0) {
+      regex.lastIndex = startOffset;
+      let match = regex.exec(textValue);
+      if (match && (match[0] || '').length === 0 && match.index === startOffset) {
+        regex.lastIndex = match.index + 1;
+        match = regex.exec(textValue);
+      }
+      if (!match && startOffset > 0) {
+        regex.lastIndex = 0;
+        match = regex.exec(textValue);
+      }
+      return match ? toRange(match) : null;
+    }
+
+    let previous = null;
+    regex.lastIndex = 0;
+    let match;
+    while ((match = regex.exec(textValue))) {
+      if (match.index >= startOffset) break;
+      previous = toRange(match);
+      if ((match[0] || '').length === 0) regex.lastIndex = match.index + 1;
+    }
+    if (previous) return previous;
+
+    regex.lastIndex = 0;
+    while ((match = regex.exec(textValue))) {
+      previous = toRange(match);
+      if ((match[0] || '').length === 0) regex.lastIndex = match.index + 1;
+    }
+    return previous;
+  }
+
+  function navigateSearch(direction){
+    if (performanceMode === 'huge') {
+      const currentOffset = currentSearchMatch
+        ? (direction > 0 ? currentSearchMatch.end : currentSearchMatch.start)
+        : (direction > 0 ? editor.selectionEnd : editor.selectionStart);
+      const match = findSingleSearchMatch(direction, currentOffset);
+      if (!match) {
+        searchStatus.textContent = 'No matches';
+        return;
+      }
+      currentSearchMatch = match;
+      editor.focus({ preventScroll: true });
+      editor.setSelectionRange(match.start, match.end);
+      scrollToOffset(match.start);
+      syncScroll();
+      updateHugeSearchStatus();
+      return;
+    }
+
+    const matches = updateSearch();
+    if (!matches.length) return;
+    searchIndex = (searchIndex + direction + matches.length) % matches.length;
+    const match = matches[searchIndex];
+    currentSearchMatch = match;
+    currentSearchOrdinal = searchIndex + 1;
+    editor.focus();
+    editor.setSelectionRange(match.start, match.end);
+    scrollToOffset(match.start);
+    syncScroll();
+    searchStatus.textContent = `Match ${currentSearchOrdinal.toLocaleString()} of ${matches.length.toLocaleString()}`;
+  }
+
+  function commitTextChange(nextText){
+    editor.value = nextText;
+    markSearchDocumentChanged();
+    syncActiveTab();
+    const tab = activeTab();
+    if (tab) tab.dirty = tab.text !== tab.savedText;
+    renderTabs();
+    searchIndex = -1;
+    currentSearchMatch = null;
+    scheduleEditorRefresh();
+    scheduleRecoveryDraft();
+    schedulePersistTabs();
+    updateCursorInfo();
+  }
+
+  function replaceCurrentMatch(){
+    const matches = performanceMode === 'huge' ? [] : updateSearch();
+    let match;
+    if (performanceMode === 'huge') {
+      match = currentSearchMatch || findSingleSearchMatch(1, editor.selectionEnd);
+    } else {
+      if (!matches.length) return;
+      if (searchIndex < 0 || searchIndex >= matches.length) searchIndex = 0;
+      match = matches[searchIndex];
+    }
+    if (!match) return;
+    const selected = editor.value.slice(match.start, match.end);
+    const regex = regexForSearch();
+    const replacement = regexToggle.checked
+      ? selected.replace(new RegExp(regex.source, regex.flags.replace('g', '')), replaceInput.value)
+      : replaceInput.value;
+    const nextText = editor.value.slice(0, match.start) + replacement + editor.value.slice(match.end);
+    commitTextChange(nextText);
+    editor.focus();
+    editor.setSelectionRange(match.start, match.start + replacement.length);
+    searchStatus.textContent = 'Replaced 1 match';
+    currentSearchMatch = { start: match.start, end: match.start + replacement.length };
+    syncActiveTab();
+    schedulePersistTabs();
+    syncScroll();
+  }
+
+  function replaceAllMatches(){
+    if (detectPerformanceMode(editor.value) === 'huge') {
+      setStatus('Huge file; replace all deferred', 'warn');
+      return;
+    }
+    const regex = regexForSearch();
+    if (!regex) return;
+    const matches = findSearchMatches();
+    if (!matches.length) {
+      searchStatus.textContent = 'No matches';
+      return;
+    }
+    if (settings.confirmReplaceAll && !window.confirm(`Replace all ${matches.length.toLocaleString()} matches?`)) return;
+    const nextText = regexToggle.checked
+      ? editor.value.replace(regex, replaceInput.value)
+      : editor.value.replace(regex, () => replaceInput.value);
+    commitTextChange(nextText);
+    searchStatus.textContent = `Replaced ${matches.length} match${matches.length === 1 ? '' : 'es'}`;
+  }
+
+  function resetSearch(){
+    searchIndex = -1;
+    currentSearchMatch = null;
+    invalidateSearchCount();
+    updateSearch();
+  }
+
+  function renderSearchHistory(){
+    searchHistory.innerHTML = '<option value="">History</option>';
+    searchHistoryValues.forEach(value => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = value.length > 32 ? `${value.slice(0, 32)}…` : value;
+      searchHistory.appendChild(option);
+    });
+  }
+
+  function rememberSearch(value){
+    const query = String(value || '').trim();
+    if (!query) return;
+    searchHistoryValues = [query, ...searchHistoryValues.filter(item => item !== query)].slice(0, 12);
+    renderSearchHistory();
+  }
+
+  const samples = {
+    vehicle_part: [
+      {
+        "type": "vehicle_part",
+        "id": "test_wooden_panel",
+        "name": { "str": "test wooden panel" },
+        "symbol": "#",
+        "color": "brown",
+        "durability": 140,
+        "location": "structure",
+        "flags": [ "MOUNT_OVER", "OPAQUE", "FLAT" ],
+        "breaks_into": [ { "item": "splinter", "count": [ 2, 5 ] } ],
+        "broken_symbol": "*",
+        "broken_color": "dark_gray",
+        "description": "A simple test panel for a vehicle."
+      }
+    ],
+    item_generic: [
+      {
+        "type": "GENERIC",
+        "id": "test_field_toolkit",
+        "name": { "str": "field toolkit" },
+        "description": "A compact generic item sample tuned toward 0.H-style JSON.",
+        "weight": "1500 g",
+        "volume": "1250 ml",
+        "price": "45 USD",
+        "price_postapoc": "2 USD",
+        "material": [ "steel", "plastic" ],
+        "symbol": ";",
+        "color": "light_gray",
+        "flags": [ "STURDY", "TRADER_AVOID" ]
+      }
+    ],
+    item_armor: [
+      {
+        "type": "ARMOR",
+        "id": "test_reinforced_vest",
+        "name": { "str": "reinforced vest" },
+        "description": "A sample armor item tuned toward 0.H-style JSON.",
+        "weight": "2800 g",
+        "volume": "8 L",
+        "price": "120 USD",
+        "material": [ "cotton", "kevlar" ],
+        "symbol": "[",
+        "color": "dark_gray",
+        "covers": [ "torso" ],
+        "coverage": 95,
+        "encumbrance": 12,
+        "warmth": 10,
+        "storage": "1500 ml"
+      }
+    ],
+    item_ammo: [
+      {
+        "type": "AMMO",
+        "id": "test_9mm_overpressure",
+        "name": { "str": "9mm +P sample round" },
+        "description": "A sample ammunition entry tuned toward 0.H-style JSON.",
+        "weight": "12 g",
+        "volume": "6 ml",
+        "price": "1 USD",
+        "material": [ "brass", "steel" ],
+        "symbol": "=",
+        "color": "yellow",
+        "ammo_type": "9mm",
+        "damage": { "damage_type": "bullet", "amount": 32 },
+        "range": 18,
+        "dispersion": 18,
+        "recoil": 1200
+      }
+    ],
+    recipe: [
+      {
+        "type": "recipe",
+        "result": "test_field_toolkit",
+        "category": "CC_OTHER",
+        "subcategory": "CSC_OTHER_TOOLS",
+        "skill_used": "fabrication",
+        "difficulty": 2,
+        "time": "20 m",
+        "autolearn": true,
+        "activity_level": "MODERATE_EXERCISE",
+        "using": [ [ "soldering_standard", 5 ] ],
+        "qualities": [ { "id": "SCREW", "level": 1 }, { "id": "WRENCH", "level": 1 } ],
+        "components": [
+          [ [ "scrap", 2 ], [ "steel_chunk", 1 ] ],
+          [ [ "plastic_chunk", 2 ] ]
+        ]
+      }
+    ],
+    requirement: [
+      {
+        "type": "requirement",
+        "id": "test_fabrication_pack",
+        "components": [
+          [ [ "rag", 2 ], [ "leather_patch", 1 ] ],
+          [ [ "thread", 50 ] ]
+        ],
+        "qualities": [
+          [ { "id": "CUT", "level": 1 } ],
+          [ { "id": "SEW", "level": 1 } ]
+        ],
+        "tools": [
+          [ [ "scissors", 1 ], [ "knife_combat", 1 ] ]
+        ]
+      }
+    ],
+    construction: [
+      {
+        "type": "construction",
+        "id": "constr_test_workbench",
+        "group": "build_furniture",
+        "category": "FURN",
+        "description": "Build test workbench",
+        "required_skills": [ [ "fabrication", 2 ] ],
+        "time": "45 m",
+        "pre_terrain": "t_floor",
+        "post_terrain": "t_floor",
+        "post_furniture": "f_test_workbench",
+        "using": [ [ "test_fabrication_pack", 1 ] ]
+      }
+    ],
+    furniture: [
+      {
+        "type": "furniture",
+        "id": "f_test_workbench",
+        "name": "test workbench",
+        "symbol": "#",
+        "color": "brown",
+        "move_str_req": 18,
+        "required_str": 10,
+        "flags": [ "TRANSPARENT", "FLAT_SURF" ],
+        "description": "A simple workbench sample for furniture formatting."
+      }
+    ],
+    terrain: [
+      {
+        "type": "terrain",
+        "id": "t_test_shrub",
+        "name": "test shrub",
+        "symbol": "#",
+        "color": "green",
+        "move_cost": 3,
+        "flags": [ "TRANSPARENT", "DIGGABLE", "SHRUB" ],
+        "harvestable": "test_shrub_harvest",
+        "description": "A small test shrub used for terrain formatting."
+      }
+    ],
+    harvest: [
+      {
+        "type": "harvest",
+        "id": "test_shrub_harvest",
+        "entries": [
+          {
+            "drop": "test_leaf",
+            "base_num": [ 1, 3 ],
+            "scale_num": [ 0, 2 ],
+            "max": 5
+          },
+          {
+            "drop": "withered",
+            "base_num": [ 0, 1 ]
+          }
+        ]
+      }
+    ],
+    monster: [
+      {
+        "type": "MONSTER",
+        "id": "mon_test_hound",
+        "name": { "str": "test hound" },
+        "description": "A fast sample creature used for monster formatting.",
+        "default_faction": "zombie",
+        "bodytype": "dog",
+        "categories": [ "WILDLIFE" ],
+        "species": [ "MAMMAL" ],
+        "volume": "62500 ml",
+        "weight": "38000 g",
+        "hp": 70,
+        "speed": 105,
+        "material": [ "flesh" ],
+        "symbol": "d",
+        "color": "light_gray"
+      }
+    ],
+    mutation: [
+      {
+        "type": "mutation",
+        "id": "TEST_NIGHT_EYES",
+        "name": { "str": "test night eyes" },
+        "description": "A sample mutation entry.",
+        "points": 2,
+        "visibility": 0,
+        "ugliness": 0,
+        "valid": false,
+        "starting_trait": false,
+        "purifiable": true,
+        "category": [ "LUPINE" ]
+      }
+    ],
+    bionic: [
+      {
+        "type": "bionic",
+        "id": "bio_test_filter",
+        "name": { "str": "test toxin filter" },
+        "description": "A sample CBM for formatting.",
+        "occupied_bodyparts": [ [ "torso", 8 ] ],
+        "weight": "420 g",
+        "encumbrance": 0,
+        "act_cost": 25,
+        "react_cost": 0,
+        "capacity": 0,
+        "included": false
+      }
+    ],
+    effect_on_condition: [
+      {
+        "type": "effect_on_condition",
+        "id": "EOC_TEST_SAMPLE",
+        "condition": { "math": [ "u_val('strength')", ">=", "8" ] },
+        "effect": [
+          { "u_message": "You feel strong enough for the sample condition." }
+        ],
+        "false_effect": [
+          { "u_message": "You are not strong enough for the sample condition." }
+        ]
+      }
+    ],
+    item_group: [
+      {
+        "type": "item_group",
+        "id": "test_loot_group",
+        "subtype": "distribution",
+        "entries": [
+          { "item": "rag", "prob": 50 },
+          { "item": "bottle_plastic", "prob": 30, "count": [ 1, 2 ] },
+          { "group": "cannedfood", "prob": 20 }
+        ]
+      }
+    ],
+    recipe_category: [
+      {
+        "type": "recipe_category",
+        "id": "CC_TEST",
+        "recipe_subcategories": [ "CSC_TEST_PARTS", "CSC_TEST_TOOLS" ]
+      }
+    ],
+    skill: [
+      {
+        "type": "skill",
+        "ident": "test_crafting",
+        "name": "Test Crafting",
+        "description": "A sample skill entry.",
+        "tags": [ "combat_skill" ],
+        "display_category": "display_interaction"
+      }
+    ],
+    tool_quality: [
+      {
+        "type": "tool_quality",
+        "id": "TEST_CLAMP",
+        "name": "clamping",
+        "usages": [ "Used to hold pieces together while working." ]
+      }
+    ],
+    material: [
+      {
+        "type": "material",
+        "id": "test_resin",
+        "name": "test resin",
+        "bash_resist": 4,
+        "cut_resist": 2,
+        "acid_resist": 6,
+        "elec_resist": 3,
+        "chip_resist": 2,
+        "density": 1.1,
+        "edible": false
+      }
+    ],
+    martial_art: [
+      {
+        "type": "martial_art",
+        "id": "style_test_do",
+        "name": "Test-do",
+        "description": "A sample martial art definition.",
+        "initiate": [ "You settle into a test stance." ],
+        "weapons": [ "test_staff" ],
+        "onmove_buffs": [ "buff_test_balance" ]
+      }
+    ],
+    npc_class: [
+      {
+        "type": "npc_class",
+        "id": "NC_TEST_SCAVENGER",
+        "name": "test scavenger",
+        "job_description": "A sample scavenger NPC class.",
+        "common": true,
+        "bonus_str": 0,
+        "bonus_dex": 1,
+        "bonus_int": 0,
+        "bonus_per": 1,
+        "skills": [ { "skill": "survival", "level": [ 1, 3 ] } ]
+      }
+    ],
+    spell: [
+      {
+        "type": "SPELL",
+        "id": "spell_test_bolt",
+        "name": { "str": "test bolt" },
+        "description": "A sample spell entry.",
+        "valid_targets": [ "hostile" ],
+        "effect": "attack",
+        "shape": "blast",
+        "base_energy_cost": 50,
+        "final_energy_cost": 15,
+        "min_damage": 6,
+        "max_damage": 16,
+        "range_increment": 2
+      }
+    ]
+    ,
+    artifact: [
+      {
+        "type": "artifact",
+        "id": "art_test_compass",
+        "base_item": "compass",
+        "name": "strange brass compass",
+        "description": "A sample artifact entry with a mundane base item and unusual effects.",
+        "passive_effects": [ "AEP_ATTENTION", "AEP_INT_UP" ],
+        "active_effects": [ "AEA_STORM" ]
+      }
+    ],
+    fault: [
+      {
+        "type": "fault",
+        "id": "fault_test_cracked_housing",
+        "name": "cracked housing",
+        "description": "A sample fault used for formatter testing.",
+        "item_prefix": "cracked",
+        "price_modifier": 0.8,
+        "flags": [ "SILENT" ]
+      }
+    ],
+    mapgen: [
+      {
+        "type": "mapgen",
+        "om_terrain": [ "test_shed" ],
+        "method": "json",
+        "object": {
+          "fill_ter": "t_floor",
+          "rows": [
+            "||||||||||||||||||||||||",
+            "|......................|",
+            "|.....w..........c.....|",
+            "|......................|",
+            "||||||||||||+|||||||||||"
+          ],
+          "terrain": {
+            ".": "t_floor",
+            "|": "t_wall_wood",
+            "+": "t_door_c"
+          },
+          "furniture": {
+            "w": "f_test_workbench",
+            "c": "f_crate_c"
+          }
+        }
+      }
+    ],
+    overmap_terrain: [
+      {
+        "type": "overmap_terrain",
+        "id": "test_shed",
+        "name": { "str": "test shed" },
+        "sym": "s",
+        "color": "brown",
+        "see_cost": 2,
+        "extras": "build_extras",
+        "flags": [ "SOURCE_SHELTER" ]
+      }
+    ],
+    profession: [
+      {
+        "type": "profession",
+        "id": "test_tinkerer",
+        "name": { "male": "Tinkerer", "female": "Tinkerer" },
+        "description": "A sample profession for testing profession formatting.",
+        "points": 1,
+        "skills": [ { "name": "fabrication", "level": 2 }, { "name": "electronics", "level": 1 } ],
+        "items": {
+          "both": {
+            "items": [ "test_field_toolkit", "pants", "tshirt" ]
+          }
+        }
+      }
+    ],
+    proficiency: [
+      {
+        "type": "proficiency",
+        "id": "prof_test_salvage",
+        "name": "Field Salvage",
+        "description": "A sample proficiency for testing.",
+        "can_learn": true,
+        "default_time_multiplier": 1.25,
+        "default_fail_multiplier": 1.1
+      }
+    ],
+    region_settings: [
+      {
+        "type": "region_settings",
+        "id": "test_region",
+        "default_oter": "field",
+        "default_groundcover": "t_grass",
+        "num_forests": 250,
+        "forest_composition": {
+          "test_tree": 100
+        }
+      }
+    ],
+    scenario: [
+      {
+        "type": "scenario",
+        "id": "test_scenario",
+        "name": "Test Start",
+        "description": "A sample scenario for testing the formatter.",
+        "points": 0,
+        "professions": [ "test_tinkerer" ],
+        "start_name": "Evac Shelter",
+        "allowed_locs": [ "sloc_shelter" ]
+      }
+    ],
+    start_location: [
+      {
+        "type": "start_location",
+        "id": "sloc_shelter",
+        "name": "Evac Shelter",
+        "target": "shelter"
+      }
+    ],
+    weakpoint_set: [
+      {
+        "type": "weakpoint_set",
+        "id": "wps_test_humanoid",
+        "weakpoints": [
+          {
+            "id": "wp_test_head",
+            "name": "head",
+            "coverage": 15,
+            "difficulty": 1
+          },
+          {
+            "id": "wp_test_torso_gap",
+            "name": "torso gap",
+            "coverage": 8,
+            "difficulty": 3
+          }
+        ]
+      }
+    ]
+    ,
+    achievement: [
+      {
+        "type": "achievement",
+        "id": "achievement_test_salvager",
+        "name": "Test Salvager",
+        "description": "A sample achievement entry for formatting.",
+        "requirements": [
+          {
+            "description": "Disassemble 10 items",
+            "event": "character_disassembles_item",
+            "target": 10
+          }
+        ]
+      }
+    ],
+    emit: [
+      {
+        "type": "emit",
+        "id": "emit_test_smoke",
+        "fields": [ "fd_smoke" ],
+        "intensity": 2,
+        "qty": 6,
+        "chance": 50
+      }
+    ],
+    flags_example: [
+      {
+        "type": "GENERIC",
+        "id": "test_flagged_tool",
+        "name": { "str": "flagged sample tool" },
+        "description": "A convenience sample showing how flags arrays are usually written.",
+        "weight": "900 g",
+        "volume": "750 ml",
+        "symbol": ";",
+        "color": "light_blue",
+        "flags": [ "STURDY", "TRADER_AVOID", "BELT_CLIP" ]
+      },
+      {
+        "type": "vehicle_part",
+        "id": "test_flagged_rack",
+        "name": { "str": "flagged sample rack" },
+        "symbol": "#",
+        "color": "dark_gray",
+        "location": "on_roof",
+        "durability": 90,
+        "flags": [ "CARGO", "ROOF", "MOUNT_OVER" ]
+      }
+    ],
+    mod_info: [
+      {
+        "type": "MOD_INFO",
+        "id": "test_formatting_pack",
+        "name": "Formatting Test Pack",
+        "authors": [ "OpenAI" ],
+        "description": "A sample modinfo entry for formatter testing.",
+        "category": "misc_additions",
+        "dependencies": [ "dda" ]
+      }
+    ],
+    monstergroup: [
+      {
+        "type": "monstergroup",
+        "name": "GROUP_TEST_WILDLIFE",
+        "default": "mon_squirrel",
+        "monsters": [
+          { "monster": "mon_squirrel", "freq": 70, "cost_multiplier": 1, "pack_size": [ 1, 2 ] },
+          { "monster": "mon_rabbit", "freq": 30, "cost_multiplier": 1, "pack_size": [ 1, 2 ] }
+        ]
+      }
+    ],
+    overmap_special: [
+      {
+        "type": "overmap_special",
+        "id": "test_shed_special",
+        "overmaps": [
+          {
+            "point": [ 0, 0, 0 ],
+            "overmap": "test_shed"
+          }
+        ],
+        "locations": [ "land" ],
+        "city_sizes": [ 0, 10 ],
+        "city_distance": [ 0, 20 ],
+        "occurrences": [ 0, 1 ]
+      }
+    ],
+    palette: [
+      {
+        "type": "palette",
+        "id": "test_palette",
+        "terrain": {
+          ".": "t_floor",
+          "|": "t_wall_wood",
+          "+": "t_door_c"
+        },
+        "furniture": {
+          "w": "f_test_workbench"
+        }
+      }
+    ],
+    ter_furn_transform: [
+      {
+        "type": "ter_furn_transform",
+        "id": "test_transform",
+        "terrain": [
+          {
+            "valid_terrain": [ "t_test_shrub" ],
+            "result": "t_dirt"
+          }
+        ],
+        "furniture": [
+          {
+            "valid_furniture": [ "f_test_workbench" ],
+            "result": "f_null"
+          }
+        ]
+      }
+    ],
+    trap: [
+      {
+        "type": "trap",
+        "id": "tr_test_snare",
+        "name": "test snare",
+        "color": "brown",
+        "symbol": "^",
+        "visibility": 6,
+        "avoidance": 2,
+        "difficulty": 1,
+        "action": "snare_light"
+      }
+    ],
+    vehicle_spawn: [
+      {
+        "type": "vehicle_spawn",
+        "id": "test_vehicle_spawn",
+        "spawn_types": [
+          {
+            "vehicle": "car",
+            "chance": 100
+          }
+        ]
+      }
+    ],
+    weapon_category: [
+      {
+        "type": "weapon_category",
+        "id": "TEST_POLE_TOOLS",
+        "name": "test pole tools",
+        "proficiency": "prof_test_salvage"
+      }
+    ]
+    ,
+    item_artifact: [
+      {
+        "type": "ARTIFACT",
+        "id": "test_strange_compass",
+        "name": { "str": "strange brass compass" },
+        "description": "A sample artifact item tuned toward 0.H-style JSON.",
+        "weight": "180 g",
+        "volume": "250 ml",
+        "price": "0 USD",
+        "material": [ "brass" ],
+        "symbol": "?",
+        "color": "yellow"
+      }
+    ],
+    item_bionic_item: [
+      {
+        "type": "BIONIC_ITEM",
+        "id": "test_bio_filter_cbm",
+        "name": { "str": "test toxin filter CBM" },
+        "description": "A sample CBM item tuned toward 0.H-style JSON.",
+        "weight": "420 g",
+        "volume": "250 ml",
+        "price": "800 USD",
+        "symbol": ";",
+        "color": "light_cyan"
+      }
+    ],
+    item_book: [
+      {
+        "type": "BOOK",
+        "id": "test_fabrication_handbook",
+        "name": { "str": "fabrication handbook" },
+        "description": "A sample book item tuned toward 0.H-style JSON.",
+        "weight": "900 g",
+        "volume": "750 ml",
+        "price": "18 USD",
+        "material": [ "paper" ],
+        "symbol": "?",
+        "color": "green",
+        "max_level": 3,
+        "required_level": 1,
+        "intelligence": 8,
+        "time": "25 m",
+        "skill": "fabrication"
+      }
+    ],
+    item_brewable: [
+      {
+        "type": "COMESTIBLE",
+        "id": "test_brewable_mash",
+        "name": { "str": "test mash" },
+        "description": "A sample brewing-process item tuned toward 0.H-style JSON.",
+        "weight": "1200 g",
+        "volume": "1 L",
+        "price": "6 USD",
+        "material": [ "wheat" ],
+        "symbol": "%",
+        "color": "brown",
+        "comestible_type": "DRINK",
+        "spoils_in": "2 days",
+        "calories": 80,
+        "quench": 0,
+        "fun": -1
+      }
+    ],
+    item_compostable: [
+      {
+        "type": "GENERIC",
+        "id": "test_spent_scraps",
+        "name": { "str": "spent vegetable scraps" },
+        "description": "A sample compostable-leaning item tuned toward 0.H-style JSON.",
+        "weight": "300 g",
+        "volume": "500 ml",
+        "price": "0 USD",
+        "material": [ "veggy" ],
+        "symbol": "%",
+        "color": "brown",
+        "flags": [ "TRADER_AVOID" ]
+      }
+    ],
+    item_comestible: [
+      {
+        "type": "COMESTIBLE",
+        "id": "test_trail_loaf",
+        "name": { "str": "trail loaf" },
+        "description": "A sample comestible item tuned toward 0.H-style JSON.",
+        "weight": "180 g",
+        "volume": "250 ml",
+        "price": "4 USD",
+        "price_postapoc": "1 USD",
+        "material": [ "wheat" ],
+        "symbol": "%",
+        "color": "light_brown",
+        "spoils_in": "3 days",
+        "comestible_type": "FOOD",
+        "calories": 320,
+        "quench": 0,
+        "fun": 1
+      }
+    ],
+    item_engine: [
+      {
+        "type": "ENGINE",
+        "id": "test_small_engine",
+        "name": { "str": "small test engine" },
+        "description": "A sample engine item tuned toward 0.H-style JSON.",
+        "weight": "45000 g",
+        "volume": "30 L",
+        "price": "450 USD",
+        "material": [ "steel" ],
+        "symbol": "#",
+        "color": "light_gray"
+      }
+    ],
+    item_gun: [
+      {
+        "type": "GUN",
+        "id": "test_9mm_pistol",
+        "name": { "str": "test 9mm pistol" },
+        "description": "A sample gun item tuned toward 0.H-style JSON.",
+        "weight": "850 g",
+        "volume": "750 ml",
+        "price": "220 USD",
+        "material": [ "steel", "plastic" ],
+        "symbol": "(",
+        "color": "dark_gray",
+        "skill": "pistol",
+        "ammo": "9mm",
+        "ranged_damage": 0,
+        "range": 18,
+        "dispersion": 180
+      }
+    ],
+    item_gunmod: [
+      {
+        "type": "GUNMOD",
+        "id": "test_compact_stock",
+        "name": { "str": "compact stock" },
+        "description": "A sample gunmod item tuned toward 0.H-style JSON.",
+        "weight": "320 g",
+        "volume": "500 ml",
+        "price": "60 USD",
+        "material": [ "aluminum", "plastic" ],
+        "symbol": ":",
+        "color": "light_gray",
+        "location": "stock",
+        "mod_targets": [ "pistol", "smg" ],
+        "install_time": "30 s"
+      }
+    ],
+    item_magazine: [
+      {
+        "type": "MAGAZINE",
+        "id": "test_pistol_mag",
+        "name": { "str": "test pistol magazine" },
+        "description": "A sample magazine item tuned toward 0.H-style JSON.",
+        "weight": "120 g",
+        "volume": "150 ml",
+        "price": "15 USD",
+        "material": [ "steel" ],
+        "symbol": "=",
+        "color": "dark_gray",
+        "ammo_type": "9mm",
+        "capacity": 15
+      }
+    ],
+    item_milling: [
+      {
+        "type": "COMESTIBLE",
+        "id": "test_dry_grain",
+        "name": { "str": "test dry grain" },
+        "description": "A sample millable grain item tuned toward 0.H-style JSON.",
+        "weight": "500 g",
+        "volume": "750 ml",
+        "price": "3 USD",
+        "material": [ "wheat" ],
+        "symbol": "%",
+        "color": "yellow",
+        "comestible_type": "FOOD",
+        "calories": 150,
+        "quench": 0,
+        "fun": 0
+      }
+    ],
+    item_pet_armor: [
+      {
+        "type": "PET_ARMOR",
+        "id": "test_dog_vest",
+        "name": { "str": "test dog vest" },
+        "description": "A sample pet armor item tuned toward 0.H-style JSON.",
+        "weight": "1100 g",
+        "volume": "3 L",
+        "price": "65 USD",
+        "material": [ "cotton", "leather" ],
+        "symbol": "[",
+        "color": "brown",
+        "environmental_protection": 2,
+        "material_thickness": 1,
+        "pet_bodytype": "dog",
+        "min_pet_vol": "16 L",
+        "max_pet_vol": "90 L"
+      }
+    ],
+    item_seed: [
+      {
+        "type": "COMESTIBLE",
+        "id": "test_turnip_seed",
+        "name": { "str_sp": "test turnip seed" },
+        "description": "A sample seed item tuned toward 0.H-style JSON.",
+        "weight": "1 g",
+        "volume": "1 ml",
+        "price": "1 USD",
+        "material": [ "veggy" ],
+        "symbol": ",",
+        "color": "light_green",
+        "comestible_type": "FOOD",
+        "calories": 1,
+        "quench": 0,
+        "fun": -1
+      }
+    ],
+    item_tool: [
+      {
+        "type": "TOOL",
+        "id": "test_multimeter",
+        "name": { "str": "test multimeter" },
+        "description": "A sample tool item tuned toward 0.H-style JSON.",
+        "weight": "250 g",
+        "volume": "500 ml",
+        "price": "35 USD",
+        "material": [ "plastic", "steel" ],
+        "symbol": ";",
+        "color": "cyan",
+        "max_charges": 100,
+        "initial_charges": 100,
+        "charges_per_use": 5,
+        "qualities": [ [ "SCREW_FINE", 1 ] ]
+      }
+    ],
+    item_toolmod: [
+      {
+        "type": "TOOLMOD",
+        "id": "test_tool_battery_adapter",
+        "name": { "str": "tool battery adapter" },
+        "description": "A sample toolmod item tuned toward 0.H-style JSON.",
+        "weight": "120 g",
+        "volume": "150 ml",
+        "price": "22 USD",
+        "material": [ "plastic", "copper" ],
+        "symbol": ":",
+        "color": "light_cyan"
+      }
+    ],
+    item_wheel: [
+      {
+        "type": "WHEEL",
+        "id": "test_light_wheel",
+        "name": { "str": "light test wheel" },
+        "description": "A sample wheel item tuned toward 0.H-style JSON.",
+        "weight": "9000 g",
+        "volume": "18 L",
+        "price": "95 USD",
+        "material": [ "rubber", "steel" ],
+        "symbol": "o",
+        "color": "black"
+      }
+    ],
+    vehicle: [
+      {
+        "id": "test_light_buggy",
+        "type": "vehicle",
+        "name": "light test buggy",
+        "parts": [
+          { "x": 0, "y": 0, "parts": [ "frame#nw", "seat", "controls" ] },
+          { "x": 1, "y": 0, "parts": [ "frame", "small_motor", "battery_car" ] },
+          { "x": -1, "y": -1, "parts": [ "frame", "wheel" ] },
+          { "x": -1, "y": 1, "parts": [ "frame", "wheel" ] },
+          { "x": 2, "y": -1, "parts": [ "frame", "wheel_steerable" ] },
+          { "x": 2, "y": 1, "parts": [ "frame", "wheel_steerable" ] },
+          { "x": 0, "y": 1, "parts": [ "halfboard#cover" ] }
+        ]
+      }
+    ]
+  };
+
+  // H keeps the established samples. I adds current-style examples where the
+  // data shape changed, while retaining the same sample categories for easy comparison.
+  const samplesByRelease = {
+    H: samples,
+    I: {
+      ...samples,
+      vehicle_part: [
+        {
+          "type": "vehicle_part",
+          "id": "test_vehicle_part_i",
+          "name": { "str": "I-release modular vehicle part" },
+          "variants": [
+            { "symbols": [ "#" ], "symbols_broken": [ "*" ] }
+          ],
+          "color": "brown",
+          "durability": 160,
+          "location": "structure",
+          "flags": [ "MOUNT_OVER", "OPAQUE", "FLAT" ],
+          "breaks_into": [ { "item": "splinter", "count": [ 2, 5 ] } ],
+          "description": "An I-release sample using the variants symbol format."
+        }
+      ],
+      vehicle: [
+        {
+          "id": "test_light_buggy_i",
+          "type": "vehicle",
+          "name": "I-release light buggy",
+          "parts": [
+            { "x": 0, "y": 0, "parts": [ "frame#nw", "seat", "controls" ] },
+            { "x": 1, "y": 0, "parts": [ "frame", "small_motor", "battery_car" ] },
+            { "x": -1, "y": -1, "parts": [ "frame", "wheel" ] },
+            { "x": 2, "y": 1, "parts": [ "frame", "wheel_steerable" ] }
+          ]
+        }
+      ],
+      item_generic: [
+        {
+          "type": "GENERIC",
+          "id": "test_field_toolkit_i",
+          "name": { "str": "I-release field toolkit" },
+          "description": "An I-release generic item sample for testing newer data alongside H-release files.",
+          "weight": "1500 g",
+          "volume": "1250 ml",
+          "material": [ "steel", "plastic" ],
+          "symbol": ";",
+          "color": "light_gray",
+          "flags": [ "STURDY", "TRADER_AVOID" ]
+        }
+      ],
+      item_ammo: [
+        {
+          "type": "ITEM",
+          "subtypes": [ "AMMO" ],
+          "id": "anesthetic_i",
+          "name": { "str_sp": "anesthetic" },
+          "category": "chems",
+          "description": "A current I-release sample showing ITEM, subtypes, liquid phase, charges, and an ammo type.",
+          "weight": "714 mg",
+          "volume": "540 ml",
+          "price": "83 USD 33 cent",
+          "price_postapoc": "30 USD",
+          "ammo_type": "anesthetic",
+          "count": 420,
+          "phase": "liquid",
+          "container": "jar_3l_glass_sealed",
+          "sealed": false,
+          "symbol": "!",
+          "color": "cyan",
+          "looks_like": "ether"
+        }
+      ],
+      item_armor: [
+        {
+          "type": "ITEM",
+          "subtypes": [ "ARMOR" ],
+          "id": "hc_sabaton_i",
+          "copy-from": "lc_sabaton",
+          "name": { "str": "high steel sabaton" },
+          "replace_materials": { "lc_steel": "hc_steel" },
+          "description": "A current I-release armor sample showing ITEM, subtypes, copy-from, and replace_materials."
+        }
+      ],
+      item_comestible: [
+        {
+          "type": "ITEM",
+          "subtypes": [ "COMESTIBLE" ],
+          "id": "homemade_hotdogs_i",
+          "name": { "str": "homemade hot dog" },
+          "copy-from": "hotdogs_frozen",
+          "description": "A current I-release comestible sample showing ITEM, subtypes, and copy-from."
+        }
+      ],
+      item_gun: [
+        {
+          "type": "ITEM",
+          "subtypes": [ "GUN" ],
+          "abstract": "smg_base_i",
+          "copy-from": "gun_base",
+          "name": { "str": "base SMG", "//~": "NO_I18N" },
+          "skill": "smg",
+          "description": "A current I-release gun sample showing ITEM, subtypes, abstract, and copy-from."
+        }
+      ],
+      item_tool: [
+        {
+          "type": "ITEM",
+          "subtypes": [ "TOOL" ],
+          "id": "spinwheelitem_i",
+          "copy-from": "fake_item",
+          "name": { "str": "spinning wheel" },
+          "description": "A current I-release tool sample showing ITEM, subtypes, and copy-from."
+        }
+      ],
+      item_book: [
+        {
+          "id": "novel_romance_i",
+          "type": "ITEM",
+          "subtypes": [ "BOOK" ],
+          "name": { "str": "romance novel" },
+          "description": "Drama and mild smut.",
+          "copy-from": "book_fict_soft_collection_tpl"
+        }
+      ],
+      item_engine: [
+        {
+          "abstract": "engine_combustion_i",
+          "type": "ITEM",
+          "subtypes": [ "ENGINE" ],
+          "category": "veh_parts",
+          "name": { "str": "internal combustion engine", "//~": "NO_I18N" },
+          "material": [ "iron" ],
+          "symbol": ":",
+          "color": "light_cyan"
+        }
+      ],
+      item_magazine: [
+        {
+          "id": "ruger30_i",
+          "looks_like": "stanag30",
+          "type": "ITEM",
+          "subtypes": [ "MAGAZINE" ],
+          "name": { "str": "Mini-14 30-round magazine" },
+          "description": "A current I-release magazine sample showing ITEM, subtypes, and copy-from.",
+          "copy-from": "stanag30"
+        }
+      ],
+      item_wheel: [
+        {
+          "id": "wheel_bicycle_or_i",
+          "copy-from": "wheel_bicycle",
+          "type": "ITEM",
+          "subtypes": [ "WHEEL" ],
+          "name": { "str": "off-road bicycle wheel" },
+          "description": "A wide, studded bicycle wheel intended for off-road biking."
+        }
+      ]
+    }
+  };
+
+  // Give every inherited category a visible I-release identity too. This
+  // prevents switching profiles from appearing to do nothing on categories
+  // whose JSON shape is unchanged between releases.
+  Object.keys(samples).forEach(key => {
+    if ([ 'vehicle_part', 'vehicle', 'item_generic', 'item_ammo', 'item_armor', 'item_comestible', 'item_gun', 'item_tool', 'item_book', 'item_engine', 'item_magazine', 'item_wheel' ].includes(key)) return;
+    const source = samples[key];
+    samplesByRelease.I[key] = JSON.parse(JSON.stringify(source)).map(entry => {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+      if (typeof entry.id === 'string') entry.id = `${entry.id}_i`;
+      if (typeof entry.name === 'string') entry.name = `${entry.name} (I release)`;
+      else if (entry.name && typeof entry.name === 'object' && typeof entry.name.str === 'string') {
+        entry.name.str = `${entry.name.str} (I release)`;
+      } else if (typeof entry.description === 'string') {
+        entry.description = `${entry.description} I-release sample.`;
+      }
+      return entry;
+    });
+  });
+
+  function getSelectedSampleKey(){
+    return document.getElementById('sampleSelect').value;
+  }
+
+  function getSelectedReleaseSamples(){
+    return samplesByRelease[releaseSelect.value] || samplesByRelease.H;
+  }
+
+  function detectPerformanceMode(textValue){
+    if (textValue.length >= HUGE_FILE_CHAR_LIMIT) return 'huge';
+    if (textValue.length >= LARGE_FILE_CHAR_LIMIT) return 'large';
+    return 'live';
+  }
+
+  function getByteCount(textValue){
+    return new TextEncoder().encode(textValue).length;
+  }
+
+  function setStatus(textValue, kind = ''){
+    status.textContent = textValue;
+    status.className = 'badge' + (kind ? ` ${kind}` : '');
+  }
+
+  function getSyntaxOffset(message){
+    const match = String(message || '').match(/position\s+(\d+)/i);
+    return match ? Number(match[1]) : null;
+  }
+
+  function jumpToOffset(offset){
+    if (!Number.isFinite(offset)) return;
+    const safeOffset = Math.max(0, Math.min(offset, editor.value.length));
+    editor.focus();
+    editor.setSelectionRange(safeOffset, Math.min(safeOffset + 1, editor.value.length));
+    scrollToOffset(safeOffset);
+    syncScroll();
+    updateCursorInfo();
+  }
+
+  function countNodes(value){
+    let count = 1;
+    if (Array.isArray(value)) {
+      for (const item of value) count += countNodes(item);
+    } else if (value && typeof value === 'object') {
+      for (const v of Object.values(value)) count += countNodes(v);
+    }
+    return count;
+  }
+
+  function sizeSummary(value){
+    if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? '' : 's'}`;
+    if (value && typeof value === 'object') {
+      const keys = Object.keys(value).length;
+      return `${keys} key${keys === 1 ? '' : 's'}`;
+    }
+    return typeof value;
+  }
+
+  function updatePerformanceUI(textValue){
+    performanceMode = detectPerformanceMode(textValue);
+
+    if (isTouchDevice) {
+      editorWrap.classList.add('plain');
+      modeBadge.textContent = isAndroid ? 'Android mode' : 'Touch mode';
+      modeBadge.className = 'badge warn';
+      return;
+    }
+
+    if (performanceMode === 'live') {
+      editorWrap.classList.remove('plain');
+      modeBadge.textContent = 'Live mode';
+      modeBadge.className = 'badge ok';
+      return;
+    }
+
+    editorWrap.classList.add('plain');
+    if (performanceMode === 'large') {
+      modeBadge.textContent = 'Large file mode';
+    } else {
+      modeBadge.textContent = 'Huge file mode';
+    }
+    modeBadge.className = 'badge warn';
+  }
+
+  function showLargeFilePausedState(textValue){
+    const bytes = getByteCount(textValue).toLocaleString();
+    clearTree(
+      'Structure view is paused in large file mode so editing stays responsive. Use CDDA Validate when you want a manual check.',
+      `${bytes} bytes • live parse paused`
+    );
+    issuesView.innerHTML = `<div class="help">Live validation is paused in ${performanceMode === 'huge' ? 'huge' : 'large'} file mode. Press <strong>CDDA Validate</strong> to run parsing on demand.</div>`;
+    reportInfo.textContent = 'Live validation paused';
+  }
+
+  function refreshEditorView(){
+    syncActiveTab();
+    updatePerformanceUI(editor.value);
+    renderLineNumbers();
+    updateSearch();
+
+    if (!isTouchDevice && performanceMode === 'live') {
+      highlighted.innerHTML = highlightJSON(editor.value);
+    } else {
+      highlighted.textContent = '';
+      if (performanceMode !== 'live') {
+        showLargeFilePausedState(editor.value);
+      }
+    }
+
+    updateCursorInfo();
+    syncScroll();
+    if (layout.classList.contains('compare-active')) scheduleCompareViewUpdate();
+    editorWrap.classList.remove('refreshing');
+  }
+
+  function scheduleEditorRefresh(){
+    clearTimeout(liveRefreshTimer);
+    editorWrap.classList.add('refreshing');
+    const nextMode = detectPerformanceMode(editor.value);
+
+    if (nextMode === 'live') {
+      liveRefreshTimer = setTimeout(() => {
+        refreshEditorView();
+      }, 80);
+    } else {
+      refreshEditorView();
+    }
+  }
+
+  function scheduleAutoValidation(){
+    clearTimeout(validationTimer);
+    if (!settings.autoValidate || detectPerformanceMode(editor.value) === 'huge') return;
+    validationTimer = setTimeout(() => runCDDAValidation(), 450);
+  }
+
+  function setEditorContent(textValue, filename, autoValidate = true, preserveSavedState = false, filePath = undefined){
+    editor.value = textValue;
+    markSearchDocumentChanged();
+    currentFileName = filename;
+    const tab = activeTab();
+    if (tab) {
+      const previousSavedText = tab.savedText;
+      const previousDirty = tab.dirty;
+      tab.name = filename;
+      if (filePath !== undefined) tab.filePath = filePath;
+      tab.text = textValue;
+      if (preserveSavedState) {
+        tab.savedText = typeof previousSavedText === 'string' ? previousSavedText : textValue;
+        tab.dirty = previousDirty;
+      } else {
+        tab.savedText = textValue;
+        tab.dirty = false;
+        removeRecoveryForTab(tab);
+      }
+    }
+    fileBadge.textContent = currentFileName;
+    renderTabs();
+    refreshEditorView();
+    updateRestoreBackupButton();
+
+    if (autoValidate) {
+      if (!isTouchDevice && detectPerformanceMode(textValue) === 'live') {
+        runCDDAValidation();
+        setStatus('Loaded content', 'ok');
+      } else if (detectPerformanceMode(textValue) !== 'live') {
+        setStatus('Loaded large file', 'warn');
+      } else {
+        setStatus(isAndroid ? 'Loaded in Android mode' : 'Loaded in touch mode', 'warn');
+      }
+    }
+  }
+
+  function loadSelectedSample(){
+    const key = getSelectedSampleKey();
+    const release = releaseSelect.value;
+    const releaseSamples = getSelectedReleaseSamples();
+    const sample = releaseSamples[key] || releaseSamples.vehicle;
+    setEditorContent(cddaStringify(sample), `sample_${key}_${release}.json`, true, false, null);
+    setTimeout(() => {
+      formatJSON();
+    }, 0);
+  }
+
+  function escapeHtml(str){
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function highlightJSON(text){
+    const escaped = escapeHtml(text);
+    const tokenized = escaped.replace(
+      /("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*")(\s*:)?|\b(true|false|null)\b|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+\-]?\d+)?|[{}\[\],:]/g,
+      (match, stringLiteral, colon, keyword) => {
+        if (stringLiteral !== undefined) {
+          if (colon) return `<span class="key">${stringLiteral}</span><span class="punct">${colon}</span>`;
+          return `<span class="string">${stringLiteral}</span>`;
+        }
+        if (keyword) {
+          if (keyword === 'null') return `<span class="null">${keyword}</span>`;
+          return `<span class="boolean">${keyword}</span>`;
+        }
+        if (/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+\-]?\d+)?$/.test(match)) {
+          return `<span class="number">${match}</span>`;
+        }
+        return `<span class="punct">${match}</span>`;
+      }
+    );
+    return tokenized + '\n';
+  }
+  function syncScroll(source = 'editor'){
+    if (scrollFrame) return;
+    scrollFrame = requestAnimationFrame(() => {
+      scrollFrame = 0;
+      if (layout.classList.contains('compare-active')) {
+        if (source === 'compare') editor.scrollTop = compareContent.scrollTop;
+        else compareContent.scrollTop = editor.scrollTop;
+      }
+      highlighted.scrollTop = editor.scrollTop;
+      highlighted.scrollLeft = editor.scrollLeft;
+      regexHighlights.scrollTop = editor.scrollTop;
+      regexHighlights.scrollLeft = editor.scrollLeft;
+      lineNumbers.scrollTop = editor.scrollTop;
+    });
+  }
+
+
+  function renderNode(key, value){
+    const row = document.createElement('div');
+    row.className = 'row';
+
+    if (Array.isArray(value)) {
+      row.innerHTML = key !== null
+        ? `<span class="t-key">${escapeHtml(String(key))}</span><span class="t-muted">: [ ] — ${value.length} item${value.length === 1 ? '' : 's'}</span>`
+        : `<span class="t-muted">[ ] — ${value.length} item${value.length === 1 ? '' : 's'}</span>`;
+      const wrap = document.createElement('div');
+      wrap.className = 'node';
+      value.forEach((item, i) => wrap.appendChild(renderNode(i, item)));
+      const container = document.createElement('div');
+      container.appendChild(row);
+      container.appendChild(wrap);
+      return container;
+    }
+
+    if (value && typeof value === 'object') {
+      const keys = Object.keys(value);
+      row.innerHTML = key !== null
+        ? `<span class="t-key">${escapeHtml(String(key))}</span><span class="t-muted">: { } — ${keys.length} key${keys.length === 1 ? '' : 's'}</span>`
+        : `<span class="t-muted">{ } — ${keys.length} key${keys.length === 1 ? '' : 's'}</span>`;
+      const wrap = document.createElement('div');
+      wrap.className = 'node';
+      keys.forEach(k => wrap.appendChild(renderNode(k, value[k])));
+      const container = document.createElement('div');
+      container.appendChild(row);
+      container.appendChild(wrap);
+      return container;
+    }
+
+    const typeClass = value === null ? 't-null' :
+      typeof value === 'string' ? 't-string' :
+      typeof value === 'number' ? 't-number' :
+      typeof value === 'boolean' ? 't-boolean' : 't-muted';
+
+    const printable = value === null ? 'null' :
+      typeof value === 'string' ? `"${value}"` : String(value);
+
+    row.innerHTML = key !== null
+      ? `<span class="t-key">${escapeHtml(String(key))}</span><span class="t-muted">: </span><span class="${typeClass}">${escapeHtml(printable)}</span>`
+      : `<span class="${typeClass}">${escapeHtml(printable)}</span>`;
+    return row;
+  }
+
+  function updateTreeFromParsed(parsed, text){
+    treeView.innerHTML = '';
+    treeView.appendChild(renderNode(null, parsed));
+    const bytes = new TextEncoder().encode(text).length;
+    metaInfo.textContent = `${sizeSummary(parsed)} • ${countNodes(parsed)} total node${countNodes(parsed) === 1 ? '' : 's'} • ${bytes.toLocaleString()} bytes`;
+  }
+
+  function clearTree(message, meta='No parsed JSON yet'){
+    treeView.innerHTML = `<div class="help">${message}</div>`;
+    metaInfo.textContent = meta;
+  }
+
+  function addIssue(kind, title, body){
+    const div = document.createElement('div');
+    div.className = `issue ${kind}`;
+    div.innerHTML = `<div class="label">${title}</div><div>${body}</div>`;
+    issuesView.appendChild(div);
+  }
+
+  function renderReport(report){
+    issuesView.innerHTML = '';
+    if (!report.syntaxOk) {
+      const issue = document.createElement('div');
+      issue.className = 'issue error';
+      issue.innerHTML = `<div class="label">Syntax error</div><div>${escapeHtml(report.syntaxError)}</div>`;
+      if (Number.isFinite(report.syntaxOffset)) {
+        const jump = document.createElement('button');
+        jump.className = 'btn';
+        jump.type = 'button';
+        jump.textContent = 'Jump to error';
+        jump.style.marginTop = '10px';
+        jump.addEventListener('click', () => jumpToOffset(report.syntaxOffset));
+        issue.appendChild(jump);
+      }
+      issuesView.appendChild(issue);
+      reportInfo.textContent = '1 error';
+      setStatus('Syntax error', 'err');
+      return;
+    }
+
+    addIssue('note', 'Syntax OK', 'JSON parsed successfully using the same basic kind of syntax check CDDA uses before deeper game loading.');
+    report.notes.forEach(note => addIssue('note', 'Note', escapeHtml(note)));
+    report.warnings.forEach(w => addIssue('warning', 'Warning', escapeHtml(w)));
+    report.errors.forEach(e => addIssue('error', 'Error', escapeHtml(e)));
+
+    const parts = [];
+    if (report.errors.length) parts.push(`${report.errors.length} error${report.errors.length === 1 ? '' : 's'}`);
+    if (report.warnings.length) parts.push(`${report.warnings.length} warning${report.warnings.length === 1 ? '' : 's'}`);
+    if (!report.errors.length && !report.warnings.length) parts.push('no CDDA warnings');
+    reportInfo.textContent = parts.join(' • ');
+
+    if (report.errors.length) setStatus('CDDA check failed', 'err');
+    else if (report.warnings.length) setStatus('CDDA check has warnings', 'warn');
+    else setStatus('CDDA check passed', 'ok');
+  }
+
+  function analyzeCDDA(text){
+    const report = {
+      syntaxOk: false,
+      syntaxError: '',
+      parsed: null,
+      errors: [],
+      warnings: [],
+      notes: []
+    };
+
+    try {
+      const parsed = JSON.parse(text);
+      report.syntaxOk = true;
+      report.parsed = parsed;
+
+      if (!Array.isArray(parsed)) {
+        report.warnings.push('CDDA data files are usually top-level arrays of JSON objects. This file is not an array.');
+      } else {
+        if (parsed.length === 0) {
+          report.warnings.push('The file is a valid JSON array but it is empty.');
+        }
+
+        const ids = new Map();
+        parsed.forEach((entry, index) => {
+          const where = `entry ${index}`;
+          if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+            report.errors.push(`${where} is not a JSON object.`);
+            return;
+          }
+
+          if (!Object.prototype.hasOwnProperty.call(entry, 'type')) {
+            report.warnings.push(`${where} has no "type". Most CDDA data objects are expected to declare a type.`);
+          }
+
+          const hasIdentity = Object.prototype.hasOwnProperty.call(entry, 'id') ||
+                              Object.prototype.hasOwnProperty.call(entry, 'abstract') ||
+                              Object.prototype.hasOwnProperty.call(entry, 'copy-from');
+          if (!hasIdentity) {
+            report.notes.push(`${where} has no id, abstract, or copy-from. That can be valid, but it is worth double-checking.`);
+          }
+
+          if (typeof entry.id === 'string') {
+            if (!ids.has(entry.id)) ids.set(entry.id, []);
+            ids.get(entry.id).push(index);
+          }
+
+          if (Object.prototype.hasOwnProperty.call(entry, 'copy-from') && typeof entry['copy-from'] !== 'string') {
+            report.warnings.push(`${where} has a non-string "copy-from".`);
+          }
+
+          if (Object.prototype.hasOwnProperty.call(entry, 'type') && typeof entry.type !== 'string') {
+            report.errors.push(`${where} has a non-string "type".`);
+          }
+
+          if (Object.prototype.hasOwnProperty.call(entry, 'id') && !(typeof entry.id === 'string' || Array.isArray(entry.id))) {
+            report.warnings.push(`${where} has an "id" that is neither a string nor an array.`);
+          }
+
+          if (entry.type === 'vehicle' && Object.prototype.hasOwnProperty.call(entry, 'parts')) {
+            if (!Array.isArray(entry.parts)) {
+              report.errors.push(`${where} has a non-array "parts" field. Modern vehicle definitions use an array of placements.`);
+            } else {
+              const coordinates = new Set();
+              entry.parts.forEach((placement, placementIndex) => {
+                const placementWhere = `${where} vehicle placement ${placementIndex}`;
+                if (!placement || typeof placement !== 'object' || Array.isArray(placement)) {
+                  report.errors.push(`${placementWhere} is not an object.`);
+                  return;
+                }
+                if (!Number.isFinite(placement.x) || !Number.isFinite(placement.y)) {
+                  report.errors.push(`${placementWhere} must have numeric x and y coordinates.`);
+                } else {
+                  const coordinate = `${placement.x},${placement.y}`;
+                  if (coordinates.has(coordinate)) report.warnings.push(`${placementWhere} duplicates coordinates (${coordinate}).`);
+                  coordinates.add(coordinate);
+                }
+                if (!Array.isArray(placement.parts) || !placement.parts.length || !placement.parts.every(part => typeof part === 'string')) {
+                  report.errors.push(`${placementWhere} must contain a non-empty string "parts" array.`);
+                }
+              });
+            }
+          }
+        });
+
+        for (const [id, indexes] of ids.entries()) {
+          if (indexes.length > 1) {
+            report.warnings.push(`Duplicate id "${id}" appears multiple times in this file at entries: ${indexes.join(', ')}.`);
+          }
+        }
+      }
+
+      report.notes.push('This browser check is useful for syntax and common structure problems, but full game-level validation still comes from loading the data in CDDA or running its tooling.');
+
+    } catch (err) {
+      report.syntaxError = err && err.message ? err.message : 'Unknown parse error';
+      report.syntaxOffset = getSyntaxOffset(report.syntaxError);
+    }
+
+    return report;
+  }
+
+  function spaces(n){
+    return ' '.repeat(n);
+  }
+
+  function isPrimitive(value){
+    return value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+  }
+
+  function primitiveToString(value){
+    return JSON.stringify(value);
+  }
+
+  function isTranslationObject(value){
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    const keys = Object.keys(value);
+    if (!keys.length) return false;
+    const allowed = new Set([ 'str', 'str_sp', 'str_pl', 'ctxt' ]);
+    return keys.every(key => allowed.has(key) && typeof value[key] === 'string');
+  }
+
+  function isCompactVehiclePlacementObject(value){
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+
+    const keys = Object.keys(value);
+    const hasSinglePart = keys.includes('part');
+    const hasPartsArray = keys.includes('parts') && Array.isArray(value.parts) &&
+      value.parts.every(part => typeof part === 'string');
+    if (!(hasSinglePart || hasPartsArray) || !keys.includes('x') || !keys.includes('y')) return false;
+    if (keys.length > 6) return false;
+
+    return keys.every(key => {
+      const v = value[key];
+      if (key === 'parts') {
+        return Array.isArray(v) && v.every(part => typeof part === 'string');
+      }
+      return v === null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
+    });
+  }
+
+  function inlineValue(value, linePrefixWidth){
+    if (isPrimitive(value)) {
+      return primitiveToString(value);
+    }
+
+    if (Array.isArray(value)) {
+      if (value.length === 0) return '[ ]';
+      const parts = [];
+      for (const item of value) {
+        const rendered = inlineValue(item, linePrefixWidth + 2);
+        if (rendered === null) return null;
+        parts.push(rendered);
+      }
+      const candidate = `[ ${parts.join(', ')} ]`;
+      return linePrefixWidth + candidate.length <= 120 ? candidate : null;
+    }
+
+    if (value && typeof value === 'object') {
+      const keys = Object.keys(value);
+      if (keys.length === 0) return '{ }';
+      if (isTranslationObject(value) || isCompactVehiclePlacementObject(value)) {
+        const parts = keys.map(key => `${JSON.stringify(key)}: ${primitiveToString(value[key])}`);
+        const candidate = `{ ${parts.join(', ')} }`;
+        return linePrefixWidth + candidate.length <= 120 ? candidate : null;
+      }
+      return null;
+    }
+
+    return null;
+  }
+
+  function cddaStringify(value, indentLevel = 0, linePrefixWidth = indentLevel){
+    if (isPrimitive(value)) {
+      return primitiveToString(value);
+    }
+
+    const inline = inlineValue(value, linePrefixWidth);
+    if (inline !== null) return inline;
+
+    if (Array.isArray(value)) {
+      if (value.length === 0) return '[ ]';
+
+      const lines = value.map(item => `${spaces(indentLevel + 2)}${cddaStringify(item, indentLevel + 2, indentLevel + 2)}`);
+      return `[\n${lines.join(',\n')}\n${spaces(indentLevel)}]`;
+    }
+
+    if (value && typeof value === 'object') {
+      const keys = Object.keys(value);
+      if (keys.length === 0) return '{ }';
+
+      const lines = keys.map(key => {
+        const keyText = JSON.stringify(key);
+        const valuePrefixWidth = indentLevel + 2 + keyText.length + 2;
+        return `${spaces(indentLevel + 2)}${keyText}: ${cddaStringify(value[key], indentLevel + 2, valuePrefixWidth)}`;
+      });
+      return `{\n${lines.join(',\n')}\n${spaces(indentLevel)}}`;
+    }
+
+    return 'null';
+  }
+
+  function refreshHighlightAndCursor(){
+    scheduleEditorRefresh();
+  }
+
+  function updateCursorInfo(){
+    const pos = editor.selectionStart || 0;
+    const before = editor.value.slice(0, pos);
+    const lines = before.split('\n');
+    const line = lines.length;
+    const col = lines[lines.length - 1].length + 1;
+    cursorInfo.textContent = `Line ${line}, Column ${col}`;
+  }
+
+  function runCDDAValidation(){
+    if (performanceMode === 'huge' || detectPerformanceMode(editor.value) === 'huge') {
+      issuesView.innerHTML = '';
+      addIssue('note', 'Huge-file validation deferred', 'The editor kept this document responsive by not parsing the entire file on the main thread. Use a smaller selection or the CDDA formatter/tooling for full validation.');
+      reportInfo.textContent = `${getByteCount(editor.value).toLocaleString()} bytes • validation deferred`;
+      clearTree('Structure rendering and full validation are deferred for this huge document.', `${getByteCount(editor.value).toLocaleString()} bytes`);
+      setStatus('Huge file; validation deferred', 'warn');
+      return { syntaxOk: null, deferred: true, parsed: null, errors: [], warnings: [], notes: [] };
+    }
+    const report = analyzeCDDA(editor.value);
+    renderReport(report);
+
+    if (report.syntaxOk) {
+      if (detectPerformanceMode(editor.value) === 'live') {
+        updateTreeFromParsed(report.parsed, editor.value);
+      } else {
+        clearTree(
+          'Validation ran, but structure rendering stays off in large file mode to avoid locking up the page.',
+          `${getByteCount(editor.value).toLocaleString()} bytes • validation complete`
+        );
+      }
+    } else {
+      clearTree('Invalid JSON. Fix the syntax error and the structure view will return.', report.syntaxError);
+    }
+    return report;
+  }
+
+  function formatJSON(){
+    if (editor.value.length === 0) {
+      setStatus('Nothing to format', 'warn');
+      return;
+    }
+    if (detectPerformanceMode(editor.value) === 'huge') {
+      setStatus('Huge file; formatting deferred', 'warn');
+      issuesView.innerHTML = '<div class="issue note"><div class="label">Formatting deferred</div><div>This document is too large for safe main-thread formatting. Keep editing/searching here and format it with the local CDDA formatter or split it into smaller files.</div></div>';
+      reportInfo.textContent = 'Formatting deferred for huge file';
+      return;
+    }
+
+    try {
+      JSON.parse(editor.value);
+    } catch (err) {
+      renderReport({ syntaxOk:false, syntaxError: err.message, syntaxOffset: getSyntaxOffset(err.message), parsed:null, errors:[], warnings:[], notes:[] });
+      clearTree('Invalid JSON. Fix the syntax error and the structure view will return.', err.message);
+      setStatus('Syntax error', 'err');
+      return;
+    }
+
+    const fallbackLocalFormat = (reasonText, kind = 'ok') => {
+      try {
+        const parsed = JSON.parse(editor.value);
+        commitTextChange(cddaStringify(parsed));
+        runCDDAValidation();
+        setStatus(reasonText || 'Formatted locally', kind);
+      } catch (err) {
+        renderReport({ syntaxOk:false, syntaxError: err.message, syntaxOffset: getSyntaxOffset(err.message), parsed:null, errors:[], warnings:[], notes:[] });
+        clearTree('Invalid JSON. Fix the syntax error and the structure view will return.', err.message);
+        setStatus('Syntax error', 'err');
+      }
+    };
+
+    const useOfficialWebFormatter = () => {
+      const sameOfficialHost =
+        /^https?:$/i.test(window.location.protocol) &&
+        /(^|\.)dev\.narc\.ro$/i.test(window.location.hostname);
+
+      if (!sameOfficialHost) {
+        fallbackLocalFormat('Formatted locally (standalone mode)', 'ok');
+        return;
+      }
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', 'https://dev.narc.ro/tools/format/json_formatter.cgi');
+      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      xhr.timeout = 10000;
+
+      xhr.onload = function() {
+        editor.disabled = false;
+        formatBtn.disabled = false;
+        window.document.body.style.cursor = 'default';
+
+        if (xhr.status === 200) {
+          commitTextChange(xhr.responseText);
+          runCDDAValidation();
+          setStatus('Formatted via web linter', 'ok');
+        } else if (xhr.status === 304) {
+          refreshEditorView();
+          runCDDAValidation();
+          setStatus('Already formatted', 'ok');
+        } else if (xhr.status === 400) {
+          alert(xhr.responseText);
+          setStatus('Formatter rejected JSON', 'err');
+        } else {
+          fallbackLocalFormat('Web linter unavailable, used local formatter', 'warn');
+        }
+      };
+
+      xhr.onerror = function() {
+        editor.disabled = false;
+        formatBtn.disabled = false;
+        window.document.body.style.cursor = 'default';
+        fallbackLocalFormat('Web linter unavailable, used local formatter', 'warn');
+      };
+
+      xhr.ontimeout = function() {
+        editor.disabled = false;
+        formatBtn.disabled = false;
+        window.document.body.style.cursor = 'default';
+        fallbackLocalFormat('Web linter timed out, used local formatter', 'warn');
+      };
+
+      editor.disabled = true;
+      formatBtn.disabled = true;
+      window.document.body.style.cursor = 'wait';
+      setStatus('Formatting…', 'warn');
+      xhr.send('data=' + encodeURIComponent(editor.value));
+    };
+
+    const localhostCandidates = [
+      'http://127.0.0.1:8765/format',
+      'http://localhost:8765/format'
+    ];
+
+    const tryLocalFormatter = (index = 0) => {
+      if (index >= localhostCandidates.length) {
+        useOfficialWebFormatter();
+        return;
+      }
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', localhostCandidates[index]);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.timeout = 10000;
+
+      xhr.onload = function() {
+        editor.disabled = false;
+        formatBtn.disabled = false;
+        window.document.body.style.cursor = 'default';
+
+        if (xhr.status === 200) {
+          let responseText = xhr.responseText;
+          try {
+            const parsed = JSON.parse(xhr.responseText);
+            if (parsed && typeof parsed.formatted === 'string') {
+              responseText = parsed.formatted;
+            }
+          } catch (e) {
+            // plain text response is also acceptable
+          }
+          commitTextChange(responseText);
+          runCDDAValidation();
+          setStatus('Formatted via local formatter server', 'ok');
+        } else if (xhr.status === 400) {
+          let message = 'Local formatter rejected JSON';
+          try {
+            const parsed = JSON.parse(xhr.responseText);
+            if (parsed && parsed.error) {
+              message = parsed.error;
+            }
+          } catch (e) {}
+          alert(message);
+          issuesView.innerHTML = `<div class="issue error"><div class="label">Local formatter error</div><div>${escapeHtml(message)}</div></div>`;
+          reportInfo.textContent = 'Local formatter error';
+          setStatus('Local formatter rejected JSON', 'err');
+        } else {
+          tryLocalFormatter(index + 1);
+        }
+      };
+
+      xhr.onerror = function() {
+        editor.disabled = false;
+        formatBtn.disabled = false;
+        window.document.body.style.cursor = 'default';
+        tryLocalFormatter(index + 1);
+      };
+
+      xhr.ontimeout = function() {
+        editor.disabled = false;
+        formatBtn.disabled = false;
+        window.document.body.style.cursor = 'default';
+        tryLocalFormatter(index + 1);
+      };
+
+      editor.disabled = true;
+      formatBtn.disabled = true;
+      window.document.body.style.cursor = 'wait';
+      setStatus('Formatting…', 'warn');
+      xhr.send(JSON.stringify({ data: editor.value }));
+    };
+
+    tryLocalFormatter();
+  }
+
+  function minifyJSON(){
+    if (detectPerformanceMode(editor.value) === 'huge') {
+      setStatus('Huge file; minifying deferred', 'warn');
+      return;
+    }
+    try {
+      const parsed = JSON.parse(editor.value);
+      commitTextChange(JSON.stringify(parsed));
+      runCDDAValidation();
+      setStatus('Minified', 'ok');
+    } catch (err) {
+      renderReport({ syntaxOk:false, syntaxError: err.message, syntaxOffset: getSyntaxOffset(err.message), parsed:null, errors:[], warnings:[], notes:[] });
+      clearTree('Invalid JSON. Fix the syntax error and the structure view will return.', err.message);
+    }
+  }
+
+  async function readFileStreaming(file){
+    if (file.stream) {
+      const reader = file.stream().getReader();
+      activeFileReader = reader;
+      const decoder = new TextDecoder();
+      const chunks = [];
+      let loaded = 0;
+      try {
+        while (true) {
+          const result = await reader.read();
+          if (result.done) break;
+          if (readCancelled) {
+            await reader.cancel();
+            throw new Error('__cancelled__');
+          }
+          chunks.push(decoder.decode(result.value, { stream: true }));
+          loaded += result.value.byteLength;
+          if (file.size) {
+            setStatus(`Reading ${Math.round(loaded / file.size * 100)}%`, 'warn');
+          }
+        }
+        if (readCancelled) throw new Error('__cancelled__');
+        chunks.push(decoder.decode());
+        return chunks.join('');
+      } finally {
+        activeFileReader = null;
+      }
+    }
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      activeFileReader = reader;
+      reader.onload = event => {
+        activeFileReader = null;
+        resolve(String(event.target.result || ''));
+      };
+      reader.onerror = () => {
+        activeFileReader = null;
+        reject(reader.error || new Error('Unable to read file'));
+      };
+      reader.onabort = () => {
+        activeFileReader = null;
+        reject(new Error('__cancelled__'));
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  async function openFile(file){
+    try {
+      setStatus('Reading file…', 'warn');
+      const loadedText = await readFileStreaming(file);
+      const filePath = getPathForFile(file);
+      if (editor.value.trim()) {
+        newTab(file.name || 'opened.json', loadedText, filePath);
+      } else {
+        const tab = activeTab();
+        tab.name = file.name || 'opened.json';
+        tab.filePath = filePath;
+        tab.text = loadedText;
+        setEditorContent(loadedText, tab.name, true, false, filePath);
+      }
+    } catch (error) {
+      if (error && error.message === '__cancelled__') {
+        setStatus('Read cancelled', 'warn');
+        return false;
+      }
+      setStatus('File read failed', 'err');
+      alert(error && error.message ? error.message : 'Unable to read file');
+      return false;
+    }
+    return true;
+  }
+
+  async function openFiles(files){
+    if (activeFileReader) return;
+    readCancelled = false;
+    cancelReadBtn.classList.remove('hidden');
+    let completed = 0;
+    try {
+      for (const file of files) {
+        if (!await openFile(file)) break;
+        completed += 1;
+      }
+    } finally {
+      cancelReadBtn.classList.add('hidden');
+      activeFileReader = null;
+      fileInput.value = '';
+    }
+    if (!readCancelled && files.length > 1 && completed === files.length) setStatus(`${files.length} files opened in tabs`, 'ok');
+    schedulePersistTabs();
+    readCancelled = false;
+  }
+
+  function getPathForFile(file){
+    try {
+      if (window.cddaDesktop && typeof window.cddaDesktop.getPathForFile === 'function') {
+        return window.cddaDesktop.getPathForFile(file) || null;
+      }
+    } catch (error) {}
+    return typeof file?.path === 'string' && file.path ? file.path : null;
+  }
+
+  function getProjectFileDisplay(file){
+    const rawPath = String(file.webkitRelativePath || file.name).replace(/\\/g, '/');
+    const parts = rawPath.split('/').filter(Boolean);
+    const projectName = parts.length > 1 ? parts[0] : 'Selected folder';
+    const displayParts = parts.length > 1 ? parts.slice(1) : parts;
+    return {
+      projectName,
+      relativePath: displayParts.join('/') || file.name
+    };
+  }
+
+  const projectTreeExpanded = new Set();
+  const projectTreeInitialized = new Set();
+
+  function projectTreeKey(project, folderPath){
+    return `${project.id}:${folderPath}`;
+  }
+
+  function renderProjects(){
+    projectsView.innerHTML = '';
+    const totalFiles = projects.reduce((sum, project) => sum + project.files.length, 0);
+    projectsInfo.textContent = projects.length
+      ? `${projects.length} folder${projects.length === 1 ? '' : 's'} · ${totalFiles} JSON`
+      : 'No folders';
+
+    if (!projects.length) {
+      projectsView.innerHTML = '<div class="help">Open a folder to list its JSON files here. Click a file to open it in a tab.</div>';
+      return;
+    }
+
+    const query = projectFilter.value.trim().toLowerCase();
+    let visibleFiles = 0;
+    projects.forEach(project => {
+      const matchingFiles = project.files.filter(item => !query || item.relativePath.toLowerCase().includes(query));
+      if (!matchingFiles.length) return;
+      visibleFiles += matchingFiles.length;
+
+      const group = document.createElement('section');
+      group.className = 'project-group';
+      const tree = document.createElement('div');
+      tree.className = 'project-tree';
+
+      const rootNode = { folders: new Map(), files: [] };
+      matchingFiles.forEach(item => {
+        const parts = item.relativePath.split('/').filter(Boolean);
+        if (parts.length < 2) {
+          rootNode.files.push(item);
+          return;
+        }
+        let current = rootNode;
+        parts.slice(0, -1).forEach(folderName => {
+          if (!current.folders.has(folderName)) {
+            current.folders.set(folderName, { name: folderName, folders: new Map(), files: [] });
+          }
+          current = current.folders.get(folderName);
+        });
+        current.files.push(item);
+      });
+
+      const rootKey = projectTreeKey(project, '');
+      if (!projectTreeInitialized.has(rootKey)) {
+        projectTreeExpanded.add(rootKey);
+        projectTreeInitialized.add(rootKey);
+      }
+      const rootExpanded = projectTreeExpanded.has(rootKey);
+      group.classList.toggle('project-group-collapsed', !rootExpanded);
+      const rootRow = document.createElement('div');
+      rootRow.className = 'project-tree-row project-tree-root';
+      const rootExpander = document.createElement('button');
+      rootExpander.className = 'project-tree-expander';
+      rootExpander.type = 'button';
+      rootExpander.textContent = rootExpanded ? '⌄' : '›';
+      rootExpander.title = rootExpanded ? 'Collapse folder' : 'Expand folder';
+      rootExpander.setAttribute('aria-label', rootExpander.title);
+      rootExpander.setAttribute('aria-expanded', String(rootExpanded));
+      const toggleRoot = () => {
+        if (rootExpanded) projectTreeExpanded.delete(rootKey);
+        else projectTreeExpanded.add(rootKey);
+        renderProjects();
+      };
+      rootExpander.addEventListener('click', event => {
+        event.stopPropagation();
+        toggleRoot();
+      });
+      const rootIcon = document.createElement('span');
+      rootIcon.className = 'project-tree-icon folder root-folder';
+      rootIcon.setAttribute('aria-hidden', 'true');
+      const rootName = document.createElement('strong');
+      rootName.className = 'project-tree-label';
+      rootName.textContent = project.name;
+      const count = document.createElement('small');
+      count.className = 'project-tree-count';
+      count.textContent = `${matchingFiles.length}/${project.files.length}`;
+      const spacer = document.createElement('span');
+      spacer.className = 'grow';
+      const rootToggle = document.createElement('button');
+      rootToggle.className = 'project-tree-root-toggle';
+      rootToggle.type = 'button';
+      rootToggle.title = rootExpanded ? 'Collapse project folder' : 'Expand project folder';
+      rootToggle.setAttribute('aria-label', rootToggle.title);
+      rootToggle.setAttribute('aria-expanded', String(rootExpanded));
+      const openAll = document.createElement('button');
+      openAll.className = 'project-tree-action';
+      openAll.type = 'button';
+      openAll.title = 'Open all visible JSON files';
+      openAll.setAttribute('aria-label', openAll.title);
+      openAll.textContent = '↗';
+      openAll.addEventListener('click', () => openFiles(matchingFiles.map(item => item.file)));
+      const remove = document.createElement('button');
+      remove.className = 'project-tree-action';
+      remove.type = 'button';
+      remove.title = 'Remove project from this panel';
+      remove.setAttribute('aria-label', remove.title);
+      remove.textContent = '×';
+      remove.addEventListener('click', () => {
+        projects = projects.filter(item => item.id !== project.id);
+        renderProjects();
+      });
+      const actions = document.createElement('span');
+      actions.className = 'project-tree-actions';
+      actions.append(openAll, remove);
+      rootToggle.append(rootIcon, rootName, count);
+      rootToggle.addEventListener('click', toggleRoot);
+      rootRow.append(rootExpander, rootToggle, spacer, actions);
+      tree.appendChild(rootRow);
+
+      function renderNodes(node, parentPath){
+        const fragment = document.createDocumentFragment();
+        const folders = Array.from(node.folders.values()).sort((a, b) => a.name.localeCompare(b.name));
+        folders.forEach(folder => {
+          const folderPath = parentPath ? `${parentPath}/${folder.name}` : folder.name;
+          const folderKey = projectTreeKey(project, folderPath);
+          const expanded = projectTreeExpanded.has(folderKey);
+          const folderRow = document.createElement('button');
+          folderRow.className = 'project-tree-row project-tree-folder';
+          folderRow.type = 'button';
+          folderRow.title = expanded ? `Collapse ${folder.name}` : `Expand ${folder.name}`;
+          folderRow.setAttribute('aria-expanded', String(expanded));
+          const expander = document.createElement('span');
+          expander.className = 'project-tree-expander';
+          expander.textContent = expanded ? '⌄' : '›';
+          expander.setAttribute('aria-hidden', 'true');
+          const icon = document.createElement('span');
+          icon.className = 'project-tree-icon folder';
+          icon.setAttribute('aria-hidden', 'true');
+          const label = document.createElement('span');
+          label.className = 'project-tree-label';
+          label.textContent = folder.name;
+          folderRow.append(expander, icon, label);
+          folderRow.addEventListener('click', () => {
+            if (expanded) projectTreeExpanded.delete(folderKey);
+            else projectTreeExpanded.add(folderKey);
+            renderProjects();
+          });
+          fragment.appendChild(folderRow);
+          if (expanded) {
+            const children = document.createElement('div');
+            children.className = 'project-tree-children';
+            children.appendChild(renderNodes(folder, folderPath));
+            fragment.appendChild(children);
+          }
+        });
+
+        node.files.sort((a, b) => a.name.localeCompare(b.name));
+        node.files.forEach(item => {
+          const fileButton = document.createElement('button');
+          fileButton.className = 'project-tree-row project-tree-file';
+          fileButton.type = 'button';
+          fileButton.title = item.relativePath;
+          const spacerIcon = document.createElement('span');
+          spacerIcon.className = 'project-tree-spacer';
+          spacerIcon.setAttribute('aria-hidden', 'true');
+          const icon = document.createElement('span');
+          icon.className = 'project-tree-icon json';
+          icon.setAttribute('aria-hidden', 'true');
+          const label = document.createElement('span');
+          label.className = 'project-tree-label';
+          label.textContent = item.name;
+          fileButton.append(spacerIcon, icon, label);
+          fileButton.addEventListener('click', () => openFile(item.file));
+          fragment.appendChild(fileButton);
+        });
+        return fragment;
+      }
+
+      if (rootExpanded) {
+        const children = document.createElement('div');
+        children.className = 'project-tree-children';
+        children.appendChild(renderNodes(rootNode, ''));
+        tree.appendChild(children);
+      }
+
+      group.appendChild(tree);
+      projectsView.appendChild(group);
+    });
+
+    if (!visibleFiles) {
+      projectsView.innerHTML = '<div class="help">No project JSON files match this filter.</div>';
+    }
+  }
+
+  function openProject(files){
+    const jsonFiles = Array.from(files || []).filter(file =>
+      file && (file.type === 'application/json' || file.name.toLowerCase().endsWith('.json'))
+    );
+    if (!jsonFiles.length) {
+      setStatus('No JSON files found in that folder', 'warn');
+      return;
+    }
+
+    const grouped = new Map();
+    jsonFiles.forEach(file => {
+      const { projectName, relativePath } = getProjectFileDisplay(file);
+      if (!grouped.has(projectName)) grouped.set(projectName, []);
+      grouped.get(projectName).push({
+        file,
+        name: file.name,
+        relativePath,
+        filePath: getPathForFile(file)
+      });
+    });
+
+    grouped.forEach((projectFiles, projectName) => {
+      projectFiles.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+      const existing = projects.find(project => project.name === projectName);
+      const project = { id: existing ? existing.id : nextProjectId++, name: projectName, files: projectFiles };
+      const index = projects.findIndex(item => item.name === projectName);
+      if (index >= 0) projects.splice(index, 1, project);
+      else projects.push(project);
+    });
+    projects.sort((a, b) => a.name.localeCompare(b.name));
+    renderProjects();
+    setStatus(`${jsonFiles.length} project JSON file${jsonFiles.length === 1 ? '' : 's'} ready`, 'ok');
+  }
+
+  function clearProjects(){
+    projects = [];
+    renderProjects();
+    setStatus('Projects cleared', 'ok');
+  }
+
+  function duplicateTab(){
+    syncActiveTab();
+    const source = activeTab();
+    if (!source) return;
+    const baseName = source.name.replace(/\.json$/i, '') || 'untitled';
+    newTab(`${baseName}_copy.json`, source.text);
+    setStatus('Tab duplicated; save it as a new file', 'ok');
+  }
+
+  function downloadText(text, fileName){
+    const blob = new Blob([text], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName.endsWith('.json') ? fileName : `${fileName}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function saveTab(tab, text){
+    if (!tab) return false;
+    tab.text = text;
+    let result = null;
+    if (window.cddaDesktop && typeof window.cddaDesktop.saveJSON === 'function') {
+      setStatus('Checking save target…', 'warn');
+      result = await window.cddaDesktop.saveJSON({
+        filePath: tab.filePath,
+        defaultName: tab.name,
+        text
+      });
+      if (!result || result.canceled) {
+        setStatus('Save cancelled', 'warn');
+        return false;
+      }
+      if (!result.ok) {
+        setStatus('Save failed', 'err');
+        return false;
+      }
+      tab.filePath = result.filePath || tab.filePath;
+      tab.name = result.fileName || tab.name;
+    } else {
+      downloadText(text, tab.name);
+    }
+
+    storePreviousSaveBackup(tab);
+    tab.savedText = text;
+    tab.dirty = false;
+    removeRecoveryForTab(tab);
+    return true;
+  }
+
+  async function saveFile(){
+    syncActiveTab();
+    const tab = activeTab();
+    if (!tab) return false;
+    const saved = await saveTab(tab, editor.value);
+    if (!saved) return false;
+    currentFileName = tab.name;
+    fileBadge.textContent = currentFileName;
+    renderTabs();
+    schedulePersistTabs();
+    setStatus('Saved', 'ok');
+    return true;
+  }
+
+  async function saveAllFiles(){
+    syncActiveTab();
+    const files = tabs.filter(tab => tab.text.length || tab.name !== 'untitled.json');
+    if (!files.length) {
+      setStatus('No named files to save', 'warn');
+      return;
+    }
+    let savedCount = 0;
+    let cancelled = false;
+    for (const tab of files) {
+      if (!await saveTab(tab, tab.text)) {
+        cancelled = true;
+        break;
+      }
+      savedCount += 1;
+    }
+    renderTabs();
+    schedulePersistTabs();
+    setStatus(cancelled ? `Save all stopped after ${savedCount} file${savedCount === 1 ? '' : 's'}` : `Saved all ${savedCount} file${savedCount === 1 ? '' : 's'}`, cancelled ? 'warn' : 'ok');
+  }
+
+  async function copyJSON(){
+    syncActiveTab();
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(editor.value);
+      } else {
+        const helper = document.createElement('textarea');
+        helper.value = editor.value;
+        helper.style.position = 'fixed';
+        helper.style.opacity = '0';
+        document.body.appendChild(helper);
+        helper.select();
+        document.execCommand('copy');
+        helper.remove();
+      }
+      setStatus('JSON copied to clipboard', 'ok');
+    } catch (error) {
+      setStatus('Could not copy JSON', 'err');
+    }
+  }
+
+  document.getElementById('openBtn').addEventListener('click', () => fileInput.click());
+  document.getElementById('openFolderBtn').addEventListener('click', () => folderInput.click());
+  cancelReadBtn.addEventListener('click', () => {
+    if (!activeFileReader) return;
+    readCancelled = true;
+    if (typeof activeFileReader.cancel === 'function') activeFileReader.cancel();
+    else if (typeof activeFileReader.abort === 'function') activeFileReader.abort();
+    setStatus('Cancelling read…', 'warn');
+  });
+  fileInput.addEventListener('change', e => {
+    const files = Array.from(e.target.files || []);
+    if (files.length) openFiles(files);
+  });
+  folderInput.addEventListener('change', e => {
+    const files = Array.from(e.target.files || []);
+    if (files.length) openProject(files);
+    folderInput.value = '';
+  });
+  document.getElementById('saveBtn').addEventListener('click', saveFile);
+  document.getElementById('saveAsBtn').addEventListener('click', saveFile);
+  document.getElementById('copyBtn').addEventListener('click', copyJSON);
+  document.getElementById('formatBtn').addEventListener('click', formatJSON);
+  document.getElementById('minifyBtn').addEventListener('click', minifyJSON);
+  document.getElementById('validateBtn').addEventListener('click', runCDDAValidation);
+  document.getElementById('sampleBtn').addEventListener('click', loadSelectedSample);
+  document.getElementById('sampleSelect').addEventListener('change', loadSelectedSample);
+  releaseSelect.addEventListener('change', () => {
+    setStatus(`${releaseSelect.value} release samples selected`, 'ok');
+    loadSelectedSample();
+  });
+  document.getElementById('newTabBtn').addEventListener('click', () => newTab());
+  document.getElementById('saveAllBtn').addEventListener('click', saveAllFiles);
+  document.getElementById('duplicateTabBtn').addEventListener('click', duplicateTab);
+  restoreBackupBtn.addEventListener('click', restorePreviousSave);
+  document.getElementById('closeOthersBtn').addEventListener('click', closeOtherTabs);
+  document.getElementById('closeAllBtn').addEventListener('click', closeAllTabs);
+  projectsToggle.addEventListener('click', toggleProjectsPanel);
+  projectsToolbarToggle.addEventListener('click', toggleProjectsPanel);
+  projectsLeftBtn.addEventListener('click', () => moveProjectsDock('left'));
+  projectsRightBtn.addEventListener('click', () => moveProjectsDock('right'));
+  document.getElementById('projectsOpenBtn').addEventListener('click', () => folderInput.click());
+  document.getElementById('clearProjectsBtn').addEventListener('click', clearProjects);
+  projectFilter.addEventListener('input', renderProjects);
+  tabFilter.addEventListener('input', renderTabs);
+  searchHistory.addEventListener('change', () => {
+    if (!searchHistory.value) return;
+    searchInput.value = searchHistory.value;
+    resetSearch();
+  });
+  document.getElementById('settingsBtn').addEventListener('click', openSettings);
+  focusBtn.addEventListener('click', toggleFocusMode);
+  document.getElementById('settingsCloseBtn').addEventListener('click', closeSettings);
+  document.getElementById('settingsCancelBtn').addEventListener('click', closeSettings);
+  document.getElementById('settingsApplyBtn').addEventListener('click', () => {
+    applySettings(readSettingsControls());
+    closeSettings();
+    setStatus('Settings applied', 'ok');
+  });
+  document.getElementById('settingsResetBtn').addEventListener('click', () => fillSettingsControls(DEFAULT_SETTINGS));
+  settingsBackdrop.addEventListener('click', event => {
+    if (event.target === settingsBackdrop) closeSettings();
+  });
+  compareBtn.addEventListener('click', toggleCompare);
+  compareSelect.addEventListener('change', () => {
+    compareTabId = Number(compareSelect.value) || null;
+    updateCompareView();
+  });
+  document.getElementById('prevSearchBtn').addEventListener('click', () => navigateSearch(-1));
+  document.getElementById('nextSearchBtn').addEventListener('click', () => navigateSearch(1));
+  document.getElementById('replaceBtn').addEventListener('click', replaceCurrentMatch);
+  document.getElementById('replaceAllBtn').addEventListener('click', replaceAllMatches);
+  searchInput.addEventListener('input', () => {
+    searchIndex = -1;
+    currentSearchMatch = null;
+    invalidateSearchCount();
+    updateSearch();
+  });
+  searchInput.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      navigateSearch(event.shiftKey ? -1 : 1);
+    }
+  });
+  regexToggle.addEventListener('change', resetSearch);
+  caseToggle.addEventListener('change', resetSearch);
+  wholeWordToggle.addEventListener('change', resetSearch);
+
+  editor.addEventListener('input', () => {
+    markSearchDocumentChanged();
+    syncActiveTab();
+    const tab = activeTab();
+    if (tab) tab.dirty = tab.text !== tab.savedText;
+    scheduleRecoveryDraft();
+    renderTabs();
+    searchIndex = -1;
+    scheduleEditorRefresh();
+    scheduleAutoValidation();
+    schedulePersistTabs();
+  });
+  editor.addEventListener('scroll', () => {
+    syncActiveTab();
+    schedulePersistTabs();
+    syncScroll();
+  });
+  window.addEventListener('beforeunload', () => {
+    syncActiveTab();
+    persistRecoveryDraft();
+    persistTabs();
+  });
+  compareContent.addEventListener('scroll', () => syncScroll('compare'));
+
+  editorWrap.addEventListener('wheel', (e) => {
+    if (isTouchDevice) return;
+    if (e.target === editor) return;
+    editor.scrollTop += e.deltaY;
+    editor.scrollLeft += e.deltaX;
+    syncScroll();
+    e.preventDefault();
+  }, { passive: false });
+
+  editorWrap.addEventListener('dragover', event => {
+    event.preventDefault();
+    editorWrap.classList.add('drop-active');
+  });
+  editorWrap.addEventListener('dragleave', event => {
+    if (!editorWrap.contains(event.relatedTarget)) editorWrap.classList.remove('drop-active');
+  });
+  editorWrap.addEventListener('drop', event => {
+    event.preventDefault();
+    editorWrap.classList.remove('drop-active');
+    const files = Array.from(event.dataTransfer?.files || [])
+      .filter(file => file.type === 'application/json' || file.name.toLowerCase().endsWith('.json'));
+    if (files.length) openFiles(files);
+    else setStatus('Drop JSON files only', 'warn');
+  });
+
+  editorWrap.addEventListener('mousedown', (e) => {
+    if (e.target !== editor) {
+      editor.focus();
+    }
+  });
+  editor.addEventListener('click', updateCursorInfo);
+  editor.addEventListener('keyup', rememberActiveView);
+  editor.addEventListener('select', rememberActiveView);
+  document.addEventListener('selectionchange', rememberActiveView);
+
+  editor.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 't') {
+      e.preventDefault();
+      newTab();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.shiftKey || e.altKey) && e.key.toLowerCase() === 'w') {
+      e.preventDefault();
+      closeTab(activeTabId);
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === 'r') {
+      e.preventDefault();
+      restorePreviousSave();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'tab') {
+      e.preventDefault();
+      const index = tabs.findIndex(tab => tab.id === activeTabId);
+      const next = tabs[(index + (e.shiftKey ? -1 : 1) + tabs.length) % tabs.length];
+      if (next) switchTab(next.id);
+      return;
+    }
+    if (settings.searchTools && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      const selected = editor.value.slice(editor.selectionStart, editor.selectionEnd);
+      if (selected && !searchInput.value) searchInput.value = selected;
+      searchInput.focus();
+      searchInput.select();
+      updateSearch();
+      return;
+    }
+    if (settings.searchTools && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') {
+      e.preventDefault();
+      replaceInput.focus();
+      replaceInput.select();
+      return;
+    }
+    if (settings.searchTools && e.key === 'F3') {
+      e.preventDefault();
+      navigateSearch(e.shiftKey ? -1 : 1);
+      return;
+    }
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      const value = editor.value;
+      const indentation = ' '.repeat(settings.tabSize);
+      commitTextChange(value.slice(0, start) + indentation + value.slice(end));
+      editor.focus();
+      editor.selectionStart = editor.selectionEnd = start + indentation.length;
+      syncActiveTab();
+      schedulePersistTabs();
+      updateCursorInfo();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      saveFile();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      saveAllFiles();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      saveFile();
+    }
+  });
+
+  loadSettings();
+  loadProjectsViewState();
+  applySettings(settings, false);
+  renderProjects();
+  if (window.cddaDesktop && typeof window.cddaDesktop.onCommand === 'function') {
+    window.cddaDesktop.onCommand(command => {
+      if (command === 'open-json') fileInput.click();
+      else if (command === 'save-json') saveFile();
+      else if (command === 'save-json-as') saveFile();
+      else if (command === 'save-all') saveAllFiles();
+      else if (command === 'open-folder') folderInput.click();
+      else if (command === 'toggle-projects') toggleProjectsPanel();
+      else if (command === 'restore-backup') restorePreviousSave();
+      else if (command === 'close-tab') closeTab(activeTabId);
+      else if (command === 'new-tab') newTab();
+      else if (command === 'find' && settings.searchTools) {
+        searchInput.focus();
+        searchInput.select();
+      } else if (command === 'replace' && settings.searchTools) {
+        replaceInput.focus();
+        replaceInput.select();
+      }
+    });
+  }
+  if (restoreTabs()) {
+    const restoredTab = activeTab();
+    const restoredDirty = restoredTab.dirty;
+    const restoredView = { ...restoredTab };
+    setEditorContent(restoredTab.text, restoredTab.name, false, true);
+    restoredTab.dirty = restoredDirty;
+    renderTabs();
+    restoreTabView(restoredTab, restoredView);
+    resetSearch();
+    setStatus('Workspace restored', 'ok');
+  } else if (!recoverDraft()) {
+    setStatus('Ready', 'ok');
+  } else {
+    // Recovery draft restored.
+  }
+  syncScroll();
+})();
+</script>
+</body>
+</html>

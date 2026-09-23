@@ -36,6 +36,15 @@ The search bar reports the total number of plain-text or regex matches. After
 using Next or Previous it reports the current position as "Match 3 of 12".
 Huge files count matches in the background so the editor remains responsive.
 
+v2.6.0 package update
+
+- Updated the package version and in-app version labels to 2.6.0.
+- Includes the Projects folder tree, save workflow, and custom JSON icon from 2.5.0.
+- Added Focus view, color themes, and adjustable editor line spacing for a clearer workspace.
+- Refined the Projects panel with a wider explorer layout, cleaner tree rows, indentation guides, and quieter hover actions.
+- Fixed root-folder collapse state so the yellow project folder stays closed after toggling.
+- Corrected file indentation and removed extra vertical spacing between open and collapsed project folders.
+
 v2.5.0 feature update
 
 - Save JSON and Save As now share one save flow: opened files ask whether to Override or Save As, while new files open the Save As dialog.
