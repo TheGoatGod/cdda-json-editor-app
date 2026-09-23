@@ -36,6 +36,11 @@ The search bar reports the total number of plain-text or regex matches. After
 using Next or Previous it reports the current position as "Match 3 of 12".
 Huge files count matches in the background so the editor remains responsive.
 
+v2.6.1 release update
+
+- Updated the package version, in-app labels, and portable executable name to 2.6.1.
+- Retained the supplied JSON application icon in the Windows build.
+
 v2.6.0 package update
 
 - Updated the package version and in-app version labels to 2.6.0.
@@ -73,7 +78,7 @@ v2.3.1 reliability update
 - Restore previous save is available from the tab toolbar and File menu.
 - Formatting and minifying now mark changed documents as modified.
 
-Run from CDDA_Json_Editor_Desktop_v2.5.0
+Run from CDDA_Json_Editor_Desktop_v2.6.1
 
 1. Install Node.js LTS.
 2. Open a terminal in this folder.
