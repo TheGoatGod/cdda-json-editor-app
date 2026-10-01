@@ -38,23 +38,34 @@ minimize it, or the left/right arrows in its header to dock it on either side.
 
 v2.8.0 major project workflow release
 
-- Validate all project JSON files and jump from each issue to its file and line.
+- Validate every JSON file in a project, including syntax and common CDDA
+  structure checks. Findings are clickable to open the relevant file and line,
+  highlight the source, and repeated top-level IDs are reported for review.
+- Clear stale project-validation results, copy a report, or export a standalone
+  HTML report grouped by file and severity.
+- Show validation, unsaved-tab, and external-change health badges in Projects,
+  with filters to focus on files that need attention.
 - Search and replace across project files with file-type and folder filters.
-- Autocomplete project IDs and find their references across JSON files.
-- Compare tabs side-by-side with synchronized scrolling.
-- Detect external file changes, recover unsaved tabs, and optionally keep
-  .bak backups when saving.
-- Insert reusable starter JSON snippets for common CDDA definitions.
-- The Validation Report expands and wraps cleanly when shown without Structure.
-- Quick Open fuzzy-searches project JSON files, open tabs, and recent local files
-  remembered between launches with Ctrl/Cmd + P.
-- Go directly to a line in the active file with Ctrl/Cmd + G.
-- Project validation warns about repeated top-level IDs and jumps to each
-  definition so potential duplicate overrides can be reviewed in context.
-- Browse top-level definition IDs across project JSON, filter by ID/type/file,
-  copy an ID, jump to its definition, or find exact string-value matches.
+- Get ID autocomplete while editing, find exact-value references, and browse a
+  searchable catalog of project definitions by ID, type, or file; copy IDs or
+  jump directly to their definitions.
+- Safely rename an ID across project JSON using an exact-value preview. JSON
+  property keys are excluded; unsaved tabs and disk conflicts are protected,
+  and changed files receive a .bak backup.
+- Apply a reviewed trailing-comma quick fix only when the result is valid JSON;
+  undo the fix while the document remains unchanged.
+- Create, edit, and delete reusable JSON snippets with prompted placeholders,
+  alongside starter snippets for common CDDA definitions.
+- Compare tabs side-by-side with synchronized scrolling. Review an external
+  disk change against the editor buffer in a synchronized diff, then choose
+  which version to keep.
+- Detect external file changes, recover unsaved tabs, and optionally keep .bak
+  backups when saving.
+- Quick Open fuzzy-searches project files, open tabs, and recent local files
+  remembered between launches with Ctrl/Cmd + P; Go to Line uses Ctrl/Cmd + G.
 - Inspect the current JSON Pointer in the editor footer and copy it with one
-  click or Ctrl/Cmd + Shift + C; path inspection pauses on very large files.
+  click or Ctrl/Cmd + Shift + C. Inspection pauses on very large files.
+- The Validation Report expands and wraps cleanly when shown without Structure.
 
 v2.7.3 project tools and editing update
 
