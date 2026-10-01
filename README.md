@@ -39,8 +39,7 @@ minimize it, or the left/right arrows in its header to dock it on either side.
 v2.8.0 major project workflow release
 
 - Validate every JSON file in a project, including syntax and common CDDA
-  structure checks. Findings are clickable to open the relevant file and line,
-  highlight the source, and repeated top-level IDs are reported for review.
+  structure checks. Findings are clickable to open the relevant file and line.
 - Clear stale project-validation results, copy a report, or export a standalone
   HTML report grouped by file and severity.
 - Show validation, unsaved-tab, and external-change health badges in Projects,

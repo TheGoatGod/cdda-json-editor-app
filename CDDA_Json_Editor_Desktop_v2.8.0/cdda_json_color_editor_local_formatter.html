@@ -888,7 +888,7 @@
       </div>
       <div class="project-tools-body">
         <section class="project-tools-pane" id="projectValidatePane">
-          <div class="project-tools-controls"><span class="project-tool-status" id="projectValidateStatus">Check syntax, CDDA structure, and repeated top-level IDs across the open project folders.</span><span class="grow"></span><button class="btn" id="copyProjectReportBtn" type="button" disabled>Copy report</button><button class="btn" id="exportProjectReportBtn" type="button" disabled>Export HTML</button><button class="btn" id="clearProjectValidationBtn" type="button" disabled>Clear results</button><button class="btn primary" id="runProjectValidationBtn" type="button">Run project validation</button></div>
+          <div class="project-tools-controls"><span class="project-tool-status" id="projectValidateStatus">Check syntax, CDDA structure, and exact repeated definition-identifier lines across the open project folders.</span><span class="grow"></span><button class="btn" id="copyProjectReportBtn" type="button" disabled>Copy report</button><button class="btn" id="exportProjectReportBtn" type="button" disabled>Export HTML</button><button class="btn" id="clearProjectValidationBtn" type="button" disabled>Clear results</button><button class="btn primary" id="runProjectValidationBtn" type="button">Run project validation</button></div>
           <div class="project-tools-results" id="projectValidateResults"><div class="help">Open a project folder, then run validation to collect issues here.</div></div>
         </section>
         <section class="project-tools-pane" id="projectSearchPane" hidden>
@@ -5899,6 +5899,14 @@
     return records;
   }
 
+  function sourceLineDetails(text, offset){
+    const safeOffset = Math.max(0, Math.min(text.length, offset));
+    const start = text.lastIndexOf('\n', safeOffset - 1) + 1;
+    const newline = text.indexOf('\n', safeOffset);
+    const end = newline < 0 ? text.length : newline;
+    return { lineText: text.slice(start, end).replace(/\r$/, ''), offset: start };
+  }
+
   function renderProjectIdCatalog(){
     idCatalogResults.innerHTML = '';
     if (projectIdCatalogRevision < 0) {
@@ -6031,9 +6039,9 @@
     let issueCount = 0;
     let validCount = 0;
     let failedCount = 0;
-    let duplicateLocationCount = 0;
+    let duplicateLineCount = 0;
     const cleanFileKeys = new Set();
-    const idsByProject = new Map();
+    const duplicateLinesByProject = new Map();
     const reportIssues = [];
     try {
       for (let index = 0; index < files.length; index += 1) {
@@ -6047,7 +6055,7 @@
           const report = analyzeCDDA(source.text);
           const offsets = report.syntaxOk ? topLevelValueOffsets(source.text) : [];
           const issues = report.syntaxOk
-            ? [...report.errors.map(message => ({ severity: 'error', message })), ...report.warnings.map(message => ({ severity: 'warning', message }))]
+            ? [...report.errors.map(message => ({ severity: 'error', message })), ...report.warnings.filter(message => !message.startsWith('Duplicate id ')).map(message => ({ severity: 'warning', message }))]
             : [{ severity: 'error', message: report.syntaxError || 'Invalid JSON syntax' }];
           const fileKey = `${project.id}:${item.filePath || item.relativePath}`;
           if (!issues.length) {
@@ -6067,13 +6075,14 @@
           }
           projectHealthByPath.set(healthKey, health);
           if (report.syntaxOk) {
-            const parsed = JSON.parse(source.text);
-            collectTopLevelProjectIds(parsed, source.text, project, item, offsets).forEach(record => {
-              const key = `${record.namespace}\u0000${record.id}`;
-              if (!idsByProject.has(project.id)) idsByProject.set(project.id, new Map());
-              const projectIds = idsByProject.get(project.id);
-              if (!projectIds.has(key)) projectIds.set(key, []);
-              projectIds.get(key).push(record);
+            collectTopLevelProjectIds(report.parsed, source.text, project, item, offsets).forEach(record => {
+              const sourceLine = sourceLineDetails(source.text, record.offset);
+              if (!sourceLine.lineText.trim()) return;
+              if (!duplicateLinesByProject.has(project.id)) duplicateLinesByProject.set(project.id, new Map());
+              const projectLines = duplicateLinesByProject.get(project.id);
+              const key = `${record.namespace}\u0000${sourceLine.lineText}`;
+              if (!projectLines.has(key)) projectLines.set(key, []);
+              projectLines.get(key).push({ ...record, ...sourceLine });
             });
           }
         } catch (error) {
@@ -6087,30 +6096,30 @@
         }
         await new Promise(resolve => setTimeout(resolve, 0));
       }
-      projectValidateStatus.textContent = 'Checking for repeated top-level IDs…';
-      idsByProject.forEach(projectIds => projectIds.forEach(records => {
+      projectValidateStatus.textContent = 'Checking repeated definition-identifier lines…';
+      duplicateLinesByProject.forEach(projectLines => projectLines.forEach(records => {
         if (records.length < 2) return;
+        const lineText = records[0].lineText;
         records.forEach(record => {
           const fileKey = `${record.project.id}:${record.item.filePath || record.item.relativePath}`;
           if (cleanFileKeys.delete(fileKey)) validCount = Math.max(0, validCount - 1);
           const others = records.filter(other => other !== record);
           const otherLocations = others.slice(0, 3).map(other => `${other.item.relativePath} · line ${other.line}`).join(', ');
           const extra = others.length > 3 ? `, and ${others.length - 3} more` : '';
-          const idKind = record.field === 'ident' ? 'ident' : 'ID';
           issueCount += 1;
-          duplicateLocationCount += 1;
+          duplicateLineCount += 1;
           const healthKey = projectHealthKey(record.project, record.item);
           const health = projectHealthByPath.get(healthKey) || { errors: 0, warnings: 0, unreadable: false, validated: true };
           health.warnings += 1;
           projectHealthByPath.set(healthKey, health);
-          const message = `Possible duplicate ${idKind} "${record.id}" (${record.namespace}); also defined in ${otherLocations}${extra}.`;
-          reportIssues.push({ severity: 'warning', project: record.project.name, relativePath: record.item.relativePath, line: record.line, message, filePath: record.item.filePath || '', offset: record.offset, highlightLength: record.id.length });
+          const message = `This complete ${record.field} definition line is repeated${otherLocations ? ` at ${otherLocations}${extra}` : ''}.`;
+          reportIssues.push({ severity: 'warning', project: record.project.name, relativePath: record.item.relativePath, line: record.line, message, filePath: record.item.filePath || '', offset: record.offset, highlightLength: lineText.length });
           makeProjectToolResult(
             projectValidateResults,
             'warning',
             `${record.project.name}/${record.item.relativePath} · line ${record.line}`,
-            `${message} Click to inspect this definition.`,
-            () => openProjectItemAt(record.item, record.line, record.offset, JSON.stringify(record.id).length)
+            `${message} ${lineText.trim()} · Click to highlight the line.`,
+            () => openProjectItemAt(record.item, record.line, record.offset, lineText.length)
           );
         });
       }));
@@ -6123,7 +6132,7 @@
       return;
     }
     if (!issueCount) projectValidateResults.innerHTML = `<div class="help">No issues found in ${validCount} JSON file${validCount === 1 ? '' : 's'}.</div>`;
-    projectValidateStatus.textContent = `${files.length} JSON checked · ${validCount} clean · ${issueCount} issue${issueCount === 1 ? '' : 's'}${duplicateLocationCount ? ` · ${duplicateLocationCount} duplicate-ID location${duplicateLocationCount === 1 ? '' : 's'}` : ''}${failedCount ? ` · ${failedCount} unreadable` : ''}`;
+    projectValidateStatus.textContent = `${files.length} JSON checked · ${validCount} clean · ${issueCount} issue${issueCount === 1 ? '' : 's'}${duplicateLineCount ? ` · ${duplicateLineCount} duplicate-line location${duplicateLineCount === 1 ? '' : 's'}` : ''}${failedCount ? ` · ${failedCount} unreadable` : ''}`;
     projectValidationIssues = reportIssues;
     projectValidationHasRun = true;
     copyProjectReportBtn.disabled = false;
