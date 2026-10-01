@@ -1,5 +1,5 @@
 # cdda-json-editor-app
-CDDA JSON Editor Desktop v2.6.1
+CDDA JSON Editor Desktop v2.8.0
 
 This is a Windows/macOS/Linux desktop wrapper around the CDDA JSON Editor.
 It runs the editor in Electron, so native menu shortcuts are handled by the
@@ -21,14 +21,53 @@ Ctrl/Cmd + F          Focus search
 
 Ctrl/Cmd + H          Focus replace
 
+Ctrl/Cmd + P          Quick Open project files, recent files, and tabs
+
+Ctrl/Cmd + G          Go to a line in the active file
+
+Ctrl/Cmd + Shift + C  Copy the JSON Pointer at the cursor
+
 Ctrl/Cmd + Alt + R    Restore the active tab's previous saved version
 
 The Projects panel can open a folder, filter its JSON files, and open one or
 all of them in tabs. Paths are shown relative to the selected folder, so a
 root-level file appears as modinfo.json and nested paths do not repeat the
 head folder. The main project folder and every nested folder can be expanded
-or collapsed. Use Hide projects in the top bar to minimize it, or the
-left/right arrows in its header to dock it on either side.
+or collapsed. Use the panel header toggle or File > Toggle Projects panel to
+minimize it, or the left/right arrows in its header to dock it on either side.
+
+v2.8.0 major project workflow release
+
+- Validate all project JSON files and jump from each issue to its file and line.
+- Search and replace across project files with file-type and folder filters.
+- Autocomplete project IDs and find their references across JSON files.
+- Compare tabs side-by-side with synchronized scrolling.
+- Detect external file changes, recover unsaved tabs, and optionally keep
+  .bak backups when saving.
+- Insert reusable starter JSON snippets for common CDDA definitions.
+- The Validation Report expands and wraps cleanly when shown without Structure.
+- Quick Open fuzzy-searches project JSON files, open tabs, and recent local files
+  remembered between launches with Ctrl/Cmd + P.
+- Go directly to a line in the active file with Ctrl/Cmd + G.
+- Project validation warns about repeated top-level IDs and jumps to each
+  definition so potential duplicate overrides can be reviewed in context.
+- Browse top-level definition IDs across project JSON, filter by ID/type/file,
+  copy an ID, jump to its definition, or find exact string-value matches.
+- Inspect the current JSON Pointer in the editor footer and copy it with one
+  click or Ctrl/Cmd + Shift + C; path inspection pauses on very large files.
+
+v2.7.3 project tools and editing update
+
+- Validate every project JSON file and click an issue to jump to the file and
+  line.
+- Search and replace across project files with file-type and folder filters.
+- Autocomplete project IDs and find their references across JSON files.
+- Compare tabs side-by-side with synchronized scrolling.
+- Detect files changed outside the app, recover unsaved tabs, and optionally
+  keep .bak backups when saving.
+- Insert reusable starter JSON snippets for common CDDA definitions.
+- Fixed the Validation Report layout when Structure is turned off, including
+  readable wrapping and a responsive standalone panel width.
 
 
 Search counts
@@ -36,6 +75,26 @@ Search counts
 The search bar reports the total number of plain-text or regex matches. After
 using Next or Previous it reports the current position as "Match 3 of 12".
 Huge files count matches in the background so the editor remains responsive.
+
+v2.7.2 toolbar and menu update
+
+- Removed top-bar Open JSON, Open folder, Projects, Save JSON, Save As, and Settings buttons that duplicated menu or panel actions.
+- Added a Settings menu beside File in the app menu bar.
+- Moved the version badge to the first position in the top toolbar.
+
+v2.7.1 Structure and validation update
+
+- Made the Structure panel a navigable tree with lazy branch rendering.
+- Added keyboard-accessible branch controls and Expand all / Collapse all actions.
+- Validation now refreshes when a file opens, a tab becomes active, or edited content changes.
+- Removed the manual Validate button; automatic validation is enabled by default and can be turned off in Settings.
+
+v2.7.0 desktop release
+
+- Replaced the self-extracting portable build with a standard Windows installer.
+- Install once, then launch the installed app directly without unpacking the app on every start.
+- The installer can create Start menu and desktop shortcuts and lets you choose the install folder.
+- Retained the supplied JSON application icon in the Windows build.
 
 v2.6.1 release update
 
@@ -79,17 +138,17 @@ v2.3.1 reliability update
 - Restore previous save is available from the tab toolbar and File menu.
 - Formatting and minifying now mark changed documents as modified.
 
-Run from CDDA_Json_Editor_Desktop_v2.6.1
+Run from CDDA_Json_Editor_Desktop_v2.8.0
 
 1. Install Node.js LTS.
 2. Open a terminal in this folder.
 3. Run: npm ci (or npm install)
 4. Run: npm start
 
-Windows users who use the prebuilt portable executable do not need Node.js.
+Windows users can install the prebuilt setup executable without Node.js.
 
-Build a portable Windows executable
+Build the Windows installer
 
 Run: npm run dist
 
-The portable executable is written to the dist folder.
+The Windows setup executable is written to the dist folder.
