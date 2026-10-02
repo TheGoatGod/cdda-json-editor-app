@@ -1,5 +1,5 @@
 # cdda-json-editor-app
-CDDA JSON Editor Desktop v2.8.2
+CDDA JSON Editor Desktop v2.8.3
 
 This is a Windows/macOS/Linux desktop wrapper around the CDDA JSON Editor.
 It runs the editor in Electron, so native menu shortcuts are handled by the
@@ -35,6 +35,50 @@ root-level file appears as modinfo.json and nested paths do not repeat the
 head folder. The main project folder and every nested folder can be expanded
 or collapsed. Use the panel header toggle or File > Toggle Projects panel to
 minimize it, or the left/right arrows in its header to dock it on either side.
+
+v2.8.3 project and editor workflow update
+
+- Inspect `copy-from` inheritance across opened projects. See the parent chain
+  and the project file and line that supplies each effective top-level field.
+- Create custom validation profiles, choose which additional checks they run,
+  and assign a different saved profile to each project. JSON syntax remains an
+  always-on safety check.
+- Review safe quick fixes with before/after previews, select which files to
+  stage, and undo the complete batch. Fixes stay in unsaved editor tabs until
+  you save them.
+- Manage multiple offline game-data snapshots. View the source folder and
+  detected game version, activate another snapshot, refresh it from its saved
+  source, or remove one without touching the original data.
+- Reopen saved validation runs after restarting the app and compare a chosen
+  run with current project files. If a profile disabled a check in one run,
+  its findings are marked not comparable instead of falsely called fixed.
+- Browse a searchable outline of top-level JSON entries and jump to one in the
+  editor. Expand or collapse nested objects and arrays in the Structure tree
+  without rewriting the JSON source.
+- Set a per-project mod load order and review duplicate typed IDs with an
+  estimated winning definition. The view does not simulate all CDDA merge
+  rules, which vary by definition type.
+- Use the active offline snapshot for context-aware suggestions of fields,
+  common values observed in that game-data version, and project/snapshot IDs.
+  Observed values are useful hints, not an exhaustive schema.
+- Compare matching definitions semantically by type and ID, ignoring object
+  key order and formatting while preserving array order.
+- Find IDs with no matching string-value occurrences outside their definitions
+  in opened project JSON. These local-only results are not confirmed game
+  errors; unopened mods or the base game may still use the IDs.
+- Use Ctrl/Cmd+P Quick Open with `>` for commands and `#` for ID navigation to
+  run validation, switch project tools, open files, and jump to definitions.
+- Stage exact text changes across multiple JSON files with individual diffs,
+  apply selected edits to unsaved tabs, and undo the batch before saving.
+- Review project metadata, file and definition counts, validation status,
+  unsaved tabs, active snapshot, and recent editor changes in the overview.
+
+v2.8.3 validation comparison maintenance update
+
+- Stabilized validation finding identity when repeated-reference counts change,
+  so existing advisories remain unchanged across runs.
+- Excluded files and projects removed from the current validation scope from the
+  comparison baseline, preventing removed findings from being mislabeled fixed.
 
 v2.8.2 offline CDDA validation update
 
@@ -209,7 +253,7 @@ v2.3.1 reliability update
 - Restore previous save is available from the tab toolbar and File menu.
 - Formatting and minifying now mark changed documents as modified.
 
-Run from CDDA_Json_Editor_Desktop_v2.8.2
+Run from CDDA_Json_Editor_Desktop_v2.8.2 (source folder; app version 2.8.3)
 
 1. Install Node.js LTS.
 2. Open a terminal in this folder.
