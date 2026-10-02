@@ -38,6 +38,17 @@ minimize it, or the left/right arrows in its header to dock it on either side.
 
 v2.8.2 offline CDDA validation update
 
+- Run a full-project validation or recheck changed files. Unchanged desktop
+  files reuse their indexed results while cross-file checks are refreshed.
+- Added project-local `copy-from`, recipe result, and selected monster, terrain,
+  and furniture reference checks. Unresolved references are advisory and marked
+  as needing game data, since the ID may come from CDDA or an unopened project.
+- Detect unambiguous inheritance cycles, duplicate MOD_INFO IDs, and
+  dependencies missing from opened projects. Missing dependencies remain
+  advisory; they may be supplied by the base game or an unopened mod.
+- Added conservative type-specific field checks for monsters, recipes, terrain,
+  and furniture, plus definite-error, likely-issue, and needs-game-data profiles
+  that can be filtered and appear in copied/exported reports.
 - Expanded the lightweight validator with duplicate JSON-property detection,
   required typed-entry checks, ID/copy-from/abstract structure checks,
   inheritance-field validation, MOD_INFO required fields and property types,
@@ -49,8 +60,24 @@ v2.8.2 offline CDDA validation update
 - Object-shaped special JSON files are informational rather than automatically
   treated as project errors; unusual blank IDs and copy-from values are warnings.
 - No CDDA game executable or full game data is required. The offline checker
-  cannot guarantee detection of engine-only errors, unknown IDs, all schema
-  rules, or references outside the opened project.
+  cannot guarantee detection of engine-only errors, version-specific schema
+  rules, or references outside the opened projects; unresolved references are
+  therefore not presented as confirmed game errors.
+
+Additional v2.8.2 project tools
+
+- Compare consecutive validation runs and filter to new, fixed, or unchanged
+  findings.
+- View MOD_INFO dependency links, missing/unopened dependencies, and cycles
+  among the opened mods.
+- Click an ID value in the editor to preview its project definition and jump to
+  the definition file and line.
+- Dismiss known project advisories with a saved reason; dismissals are scoped to
+  the selected project folder and can be shown or restored later.
+- Import a compatible CDDA JSON-data folder as an offline typed-ID snapshot.
+  The app stores its compact index locally, uses it to resolve vanilla
+  references and known vanilla mod dependencies, and never edits or bundles the
+  selected game files.
 
 v2.8.1 duplicate validation precision update
 
@@ -182,7 +209,7 @@ v2.3.1 reliability update
 - Restore previous save is available from the tab toolbar and File menu.
 - Formatting and minifying now mark changed documents as modified.
 
-Run from CDDA_Json_Editor_Desktop_v2.8.1
+Run from CDDA_Json_Editor_Desktop_v2.8.2
 
 1. Install Node.js LTS.
 2. Open a terminal in this folder.

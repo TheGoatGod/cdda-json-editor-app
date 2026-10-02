@@ -33,6 +33,144 @@ async function fileFingerprint(filePath) {
   }
 }
 
+function offlineSnapshotFile() {
+  return path.join(app.getPath('userData'), 'offline-game-data-index.json');
+}
+
+function collectSnapshotDefinitions(value, relativePath, byType) {
+  const visit = (entry) => {
+    if (Array.isArray(entry)) {
+      entry.forEach(visit);
+      return;
+    }
+    if (!entry || typeof entry !== 'object') return;
+    if (typeof entry.type === 'string') {
+      const type = entry.type.toLowerCase();
+      const ids = Array.isArray(entry.id) ? entry.id : [entry.id];
+      if (!byType.has(type)) byType.set(type, new Map());
+      const typeRecords = byType.get(type);
+      ids.concat(typeof entry.abstract === 'string' ? [entry.abstract] : []).forEach(id => {
+        if (typeof id !== 'string' || !id.trim() || typeRecords.has(id)) return;
+        const nameValue = entry.name;
+        const label = typeof nameValue === 'string' ? nameValue : (nameValue && typeof nameValue === 'object' ? nameValue.str : '');
+        const description = typeof entry.description === 'string' ? entry.description : '';
+        typeRecords.set(id, { id, file: relativePath, preview: String(label || description || '').replace(/\s+/g, ' ').slice(0, 180) });
+      });
+    }
+    Object.values(entry).forEach(child => {
+      if (child && typeof child === 'object') visit(child);
+    });
+  };
+  visit(value);
+}
+
+async function readOfflineSnapshot() {
+  try {
+    return JSON.parse(await fs.readFile(offlineSnapshotFile(), 'utf8'));
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+ipcMain.handle('get-offline-snapshot', async () => {
+  try { return { ok: true, snapshot: await readOfflineSnapshot() }; }
+  catch (error) { return { ok: false, error: error && error.message ? error.message : 'Could not load offline data index' }; }
+});
+
+ipcMain.handle('remove-offline-snapshot', async () => {
+  try {
+    await fs.rm(offlineSnapshotFile(), { force: true });
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error && error.message ? error.message : 'Could not remove offline data index' };
+  }
+});
+
+ipcMain.handle('import-offline-snapshot', async () => {
+  const selected = await dialog.showOpenDialog(mainWindow, {
+    title: 'Import CDDA JSON data snapshot',
+    buttonLabel: 'Index JSON data',
+    properties: ['openDirectory']
+  });
+  if (selected.canceled || !selected.filePaths.length) return { canceled: true };
+
+  const root = selected.filePaths[0];
+  const byType = new Map();
+  const maxFiles = 150000;
+  const maxFileBytes = 32 * 1024 * 1024;
+  let scanned = 0;
+  let parsed = 0;
+  let skipped = 0;
+  let stoppedAtLimit = false;
+
+  const visitDirectory = async (directory, depth = 0) => {
+    if (depth > 80 || stoppedAtLimit) return;
+    let entries;
+    try { entries = await fs.readdir(directory, { withFileTypes: true }); }
+    catch (error) { skipped += 1; return; }
+    for (const entry of entries) {
+      if (stoppedAtLimit) break;
+      if (entry.name === '.git' || entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+      const absolutePath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        await visitDirectory(absolutePath, depth + 1);
+        continue;
+      }
+      if (!entry.isFile() || path.extname(entry.name).toLowerCase() !== '.json') continue;
+      scanned += 1;
+      if (scanned > maxFiles) { stoppedAtLimit = true; break; }
+      try {
+        const stat = await fs.stat(absolutePath);
+        if (stat.size > maxFileBytes) { skipped += 1; continue; }
+        const source = await fs.readFile(absolutePath, 'utf8');
+        const value = JSON.parse(source);
+        const relativePath = path.relative(root, absolutePath).split(path.sep).join('/');
+        collectSnapshotDefinitions(value, relativePath, byType);
+        parsed += 1;
+      } catch (error) { skipped += 1; }
+      if (scanned % 250 === 0 && mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('offline-snapshot-progress', { scanned, parsed, skipped });
+        await new Promise(resolve => setImmediate(resolve));
+      }
+    }
+  };
+
+  try {
+    await visitDirectory(root);
+    const definitionsByType = {};
+    let definitionCount = 0;
+    byType.forEach((records, type) => {
+      definitionsByType[type] = Array.from(records.values());
+      definitionCount += records.size;
+    });
+    const snapshot = {
+      version: 1,
+      rootName: path.basename(root),
+      importedAt: new Date().toISOString(),
+      scannedFiles: Math.min(scanned, maxFiles),
+      parsedFiles: parsed,
+      skippedFiles: skipped,
+      truncated: stoppedAtLimit,
+      definitionCount,
+      definitionsByType
+    };
+    const destination = offlineSnapshotFile();
+    await fs.mkdir(path.dirname(destination), { recursive: true });
+    const temporary = `${destination}.${process.pid}.${Date.now()}.tmp`;
+    try {
+      await fs.writeFile(temporary, JSON.stringify(snapshot), 'utf8');
+      await fs.rename(temporary, destination);
+    } catch (error) {
+      await fs.rm(temporary, { force: true }).catch(() => {});
+      throw error;
+    }
+    return { ok: true, snapshot };
+  } catch (error) {
+    return { ok: false, error: error && error.message ? error.message : 'Could not index selected JSON data' };
+  }
+});
+
 async function writeTextSafely(filePath, text, createBackup) {
   const exists = await fileExists(filePath);
   if (createBackup && exists) await fs.copyFile(filePath, `${filePath}.bak`);

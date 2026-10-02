@@ -126,6 +126,27 @@
   .project-validation-result-row{ display:flex; align-items:stretch; gap:6px; min-width:0; }
   .project-validation-result-row > .project-tool-result{ flex:1; min-width:0; }
   .project-validation-quick-fix{ flex:0 0 auto; align-self:stretch; white-space:nowrap; }
+  .project-validation-action{ flex:0 0 auto; align-self:stretch; white-space:nowrap; }
+  .project-validation-status{ flex:0 0 auto; align-self:flex-start; padding:3px 7px; border-radius:999px; color:var(--muted); background:rgba(148,163,184,.1); font-size:11px; }
+  .project-validation-status.new{ color:#bbf7d0; background:rgba(34,197,94,.16); }
+  .project-validation-status.fixed{ color:#bae6fd; background:rgba(56,189,248,.14); }
+  .project-validation-status.unchanged{ color:#fde68a; background:rgba(245,158,11,.13); }
+  .project-validation-result-row.is-dismissed{ opacity:.72; }
+  .dependency-graph{ display:grid; gap:8px; }
+  .dependency-node{ display:grid; grid-template-columns:minmax(130px,1fr) auto minmax(180px,2fr); align-items:center; gap:8px; padding:9px 10px; border:1px solid var(--border); border-radius:9px; background:rgba(148,163,184,.05); }
+  .dependency-node.cycle{ border-color:rgba(239,68,68,.75); background:rgba(239,68,68,.08); }
+  .dependency-mod{ font-weight:600; overflow-wrap:anywhere; }
+  .dependency-arrow{ color:var(--muted); }
+  .dependency-targets{ display:flex; gap:5px; flex-wrap:wrap; }
+  .dependency-chip{ padding:3px 7px; border:0; border-radius:7px; background:rgba(56,189,248,.1); color:#bae6fd; font:inherit; font-size:12px; overflow-wrap:anywhere; cursor:pointer; }
+  .dependency-chip.missing{ background:rgba(245,158,11,.12); color:#fde68a; }
+  .dependency-chip.cyclic{ background:rgba(239,68,68,.16); color:#fecaca; }
+  .id-definition-preview{ position:absolute; z-index:15; right:10px; top:10px; width:min(390px,calc(100% - 20px)); max-height:45%; overflow:auto; padding:10px; border:1px solid var(--border); border-radius:10px; background:#0b1220; box-shadow:0 10px 34px rgba(0,0,0,.35); }
+  .id-definition-preview.hidden{ display:none; }
+  .id-definition-preview-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:600; overflow-wrap:anywhere; }
+  .id-definition-preview-item{ display:block; width:100%; margin-top:5px; padding:7px 8px; border:1px solid var(--border); border-radius:7px; background:rgba(148,163,184,.06); color:var(--text); text-align:left; cursor:pointer; }
+  .id-definition-preview-item small{ display:block; margin-top:3px; color:var(--muted); overflow-wrap:anywhere; }
+  .offline-snapshot-status{ color:var(--muted); font-size:12px; }
   .id-catalog-row{ display:flex; gap:6px; align-items:stretch; }
   .id-catalog-row .project-tool-result{ flex:1; min-width:0; }
   .id-catalog-action{ align-self:center; flex:0 0 auto; }
@@ -144,7 +165,7 @@
   .validation-tools{ display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
   .validation-tools .grow{ min-width:10px; }
   .project-tool-status{ color:var(--muted); font-size:13px; }
-  @media (max-width:760px){ .external-diff-grid{ grid-template-columns:1fr; } .external-diff-lines{ max-height:32vh; min-height:130px; } }
+  @media (max-width:760px){ .external-diff-grid{ grid-template-columns:1fr; } .external-diff-lines{ max-height:32vh; min-height:130px; } .dependency-node{ grid-template-columns:1fr; gap:4px; } .dependency-arrow{ display:none; } }
   .command-backdrop{ z-index:30; align-items:flex-start; }
   .command-panel{ width:min(760px,100%); max-height:min(76vh,700px); margin-top:min(12vh,110px); overflow:hidden; }
   .command-input-wrap{ padding:14px 16px; border-bottom:1px solid var(--border); }
@@ -826,13 +847,14 @@
       </div>
     </section>
     <section class="panel">
-      <div class="panelhead"><span>Editor</span><span class="grow"></span><button class="btn" id="findReferencesBtn" type="button" title="Find this ID in project files">Find ID</button><select class="btn" id="snippetSelect" aria-label="Insert JSON snippet"><option value="">Insert snippet…</option><option value="item">Item</option><option value="recipe">Recipe</option><option value="monster">Monster</option><option value="terrain">Terrain</option><option value="furniture">Furniture</option><option value="generic">Generic object</option></select><button class="btn" id="manageSnippetsBtn" type="button" title="Manage custom JSON snippets">Snippets…</button></div>
+      <div class="panelhead"><span>Editor</span><span class="grow"></span><button class="btn" id="findReferencesBtn" type="button" title="Find this ID in project files">Find ID</button><button class="btn" id="peekIdDefinitionBtn" type="button" title="Preview the definition for the ID at the cursor">Peek ID</button><select class="btn" id="snippetSelect" aria-label="Insert JSON snippet"><option value="">Insert snippet…</option><option value="item">Item</option><option value="recipe">Recipe</option><option value="monster">Monster</option><option value="terrain">Terrain</option><option value="furniture">Furniture</option><option value="generic">Generic object</option></select><button class="btn" id="manageSnippetsBtn" type="button" title="Manage custom JSON snippets">Snippets…</button></div>
       <div class="editor-wrap">
         <pre class="code-layer" id="highlighted" aria-hidden="true"></pre>
         <pre class="regex-highlights" id="regexHighlights" aria-hidden="true"></pre>
         <pre class="line-numbers" id="lineNumbers" aria-hidden="true">1</pre>
         <textarea class="input-layer" id="editor" spellcheck="false" wrap="off"></textarea>
         <div class="id-autocomplete hidden" id="idAutocomplete" role="listbox" aria-label="ID suggestions"></div>
+        <div class="id-definition-preview hidden" id="idDefinitionPreview" role="status" aria-live="polite"></div>
       </div>
       <div class="foot" id="cursorInfo"><span id="cursorPosition">Line 1, Column 1</span><button class="btn json-pointer-button" id="copyJsonPathBtn" type="button" disabled title="A JSON Pointer will appear here when the document is valid">JSON Pointer: —</button><button class="btn hidden" id="reviewExternalChangeBtn" type="button">Compare disk changes</button><button class="btn hidden" id="externalChangeBtn" type="button">Reload from disk</button></div>
     </section>
@@ -888,19 +910,24 @@
         <button class="btn primary" type="button" data-project-mode="validate">Validate project</button>
         <button class="btn" type="button" data-project-mode="search">Search &amp; replace</button>
         <button class="btn" type="button" data-project-mode="references">Find references</button>
+        <button class="btn" type="button" data-project-mode="dependencies">Dependency graph</button>
         <button class="btn" type="button" data-project-mode="ids">Browse IDs</button>
         <button class="btn" type="button" data-project-mode="refactor">Rename ID</button>
       </div>
       <div class="project-tools-body">
         <section class="project-tools-pane" id="projectValidatePane">
-          <div class="project-tools-controls"><span class="project-tool-status" id="projectValidateStatus">Check syntax, CDDA structure, and exact repeated definition-identifier lines across the open project folders.</span><span class="grow"></span><button class="btn" id="copyProjectReportBtn" type="button" disabled>Copy report</button><button class="btn" id="exportProjectReportBtn" type="button" disabled>Export all HTML</button><button class="btn" id="exportFilteredProjectReportBtn" type="button" disabled>Export filtered</button><button class="btn" id="clearProjectValidationBtn" type="button" disabled>Clear results</button><button class="btn primary" id="runProjectValidationBtn" type="button">Run project validation</button></div>
+          <div class="project-tools-controls"><span class="project-tool-status" id="projectValidateStatus">Check syntax, CDDA structure, references, mod dependencies, and exact repeated definition-identifier lines across open projects.</span><span class="grow"></span><button class="btn" id="copyProjectReportBtn" type="button" disabled>Copy report</button><button class="btn" id="exportProjectReportBtn" type="button" disabled>Export all HTML</button><button class="btn" id="exportFilteredProjectReportBtn" type="button" disabled>Export filtered</button><button class="btn" id="clearProjectValidationBtn" type="button" disabled>Clear results</button><button class="btn" id="runChangedProjectValidationBtn" type="button" disabled>Recheck changed files</button><button class="btn primary" id="runProjectValidationBtn" type="button">Run full validation</button></div>
           <div class="project-tools-controls">
             <input id="projectValidationSearchInput" type="search" placeholder="Filter by file, line, or message…" aria-label="Filter project validation findings" disabled />
+            <select id="projectValidationCompareFilter" aria-label="Compare with previous validation run" disabled><option value="all">All findings</option><option value="new">New findings</option><option value="fixed">Fixed since last run</option><option value="unchanged">Unchanged findings</option></select>
             <select id="projectValidationSeverityFilter" aria-label="Filter findings by severity" disabled><option value="all">All severities</option><option value="error">Errors</option><option value="warning">Warnings</option></select>
+            <select id="projectValidationConfidenceFilter" aria-label="Filter findings by confidence" disabled><option value="all">All profiles</option><option value="definite">Definite errors</option><option value="likely">Likely issues</option><option value="needs-game-data">Needs game data</option></select>
             <label><input id="projectValidationShowDuplicates" type="checkbox" checked disabled title="Show exact repeated definition lines and duplicate JSON properties" /> Show duplicates</label>
             <label><input id="projectValidationShowEmptyFiles" type="checkbox" checked disabled /> Show empty files</label>
+            <label><input id="projectValidationShowDismissed" type="checkbox" disabled /> Show dismissed</label>
             <span class="project-tool-status" id="projectValidationFilterStatus">Run validation to filter findings.</span>
           </div>
+          <div class="project-tools-controls"><button class="btn" id="importOfflineSnapshotBtn" type="button">Import game data snapshot…</button><button class="btn" id="removeOfflineSnapshotBtn" type="button" disabled>Remove snapshot</button><span class="offline-snapshot-status" id="offlineSnapshotStatus">No offline game-data snapshot imported.</span></div>
           <div class="project-tools-results" id="projectValidateResults"><div class="help">Open a project folder, then run validation to collect issues here.</div></div>
         </section>
         <section class="project-tools-pane" id="projectSearchPane" hidden>
@@ -911,6 +938,10 @@
         <section class="project-tools-pane" id="projectReferencesPane" hidden>
           <div class="project-tools-controls"><input id="projectReferenceInput" type="search" placeholder="Enter an ID…" aria-label="ID to find in project files" /><button class="btn primary" id="runProjectReferencesBtn" type="button">Find references</button><span class="project-tool-status" id="projectReferencesStatus"></span></div>
           <div class="project-tools-results" id="projectReferencesResults"><div class="help">Choose an ID in the editor and click Find ID, or enter one above.</div></div>
+        </section>
+        <section class="project-tools-pane" id="projectDependenciesPane" hidden>
+          <div class="project-tools-controls"><span class="project-tool-status" id="projectDependenciesStatus">Index MOD_INFO dependencies from opened projects and identify missing targets and dependency cycles.</span><span class="grow"></span><button class="btn primary" id="runDependencyGraphBtn" type="button">Build dependency graph</button></div>
+          <div class="project-tools-results dependency-graph" id="projectDependenciesResults"><div class="help">Open mod folders, then build the graph to see dependency links and cycles.</div></div>
         </section>
         <section class="project-tools-pane" id="projectIdsPane" hidden>
           <div class="project-tools-controls"><input id="idCatalogSearchInput" type="search" placeholder="Filter IDs, types, or files…" aria-label="Filter project ID catalog" /><button class="btn primary" id="runIdCatalogBtn" type="button">Scan project IDs</button><span class="project-tool-status" id="idCatalogStatus">Scan open projects to browse top-level IDs.</span></div>
@@ -1092,14 +1123,24 @@
   const projectValidateResults = document.getElementById('projectValidateResults');
   const projectValidateStatus = document.getElementById('projectValidateStatus');
   const projectValidationSearchInput = document.getElementById('projectValidationSearchInput');
+  const projectValidationCompareFilter = document.getElementById('projectValidationCompareFilter');
   const projectValidationSeverityFilter = document.getElementById('projectValidationSeverityFilter');
+  const projectValidationConfidenceFilter = document.getElementById('projectValidationConfidenceFilter');
   const projectValidationShowDuplicates = document.getElementById('projectValidationShowDuplicates');
   const projectValidationShowEmptyFiles = document.getElementById('projectValidationShowEmptyFiles');
+  const projectValidationShowDismissed = document.getElementById('projectValidationShowDismissed');
   const projectValidationFilterStatus = document.getElementById('projectValidationFilterStatus');
+  const offlineSnapshotStatus = document.getElementById('offlineSnapshotStatus');
+  const importOfflineSnapshotBtn = document.getElementById('importOfflineSnapshotBtn');
+  const removeOfflineSnapshotBtn = document.getElementById('removeOfflineSnapshotBtn');
+  const projectDependenciesStatus = document.getElementById('projectDependenciesStatus');
+  const projectDependenciesResults = document.getElementById('projectDependenciesResults');
+  const idDefinitionPreview = document.getElementById('idDefinitionPreview');
   const copyProjectReportBtn = document.getElementById('copyProjectReportBtn');
   const exportProjectReportBtn = document.getElementById('exportProjectReportBtn');
   const exportFilteredProjectReportBtn = document.getElementById('exportFilteredProjectReportBtn');
   const clearProjectValidationBtn = document.getElementById('clearProjectValidationBtn');
+  const runChangedProjectValidationBtn = document.getElementById('runChangedProjectValidationBtn');
   const refactorOldIdInput = document.getElementById('refactorOldIdInput');
   const refactorNewIdInput = document.getElementById('refactorNewIdInput');
   const idRefactorStatus = document.getElementById('idRefactorStatus');
@@ -1191,6 +1232,7 @@
   let searchCountTimer = null;
   let searchCountInProgress = false;
   let projectIdIndex = new Map();
+  let projectDefinitionIndex = new Map();
   let projectIndexRevision = 0;
   let projectSearchMatches = [];
   let projectSearchSignature = '';
@@ -1211,9 +1253,17 @@
   let projectIdCatalogFileCount = 0;
   let projectIdCatalogSkippedCount = 0;
   let projectValidationIssues = [];
+  let projectValidationPreviousIssues = [];
+  let projectValidationDisplayIssues = [];
+  let projectValidationHasPreviousRun = false;
+  let projectDismissalCache = new Map();
+  let projectValidationDocumentSnapshots = new Map();
   let projectValidationFileCount = 0;
   let projectValidationHasRun = false;
   let projectValidationStale = false;
+  let offlineGameDataSnapshot = null;
+  let offlineSnapshotImportInProgress = false;
+  let offlineSnapshotLoaded = false;
   let projectHealthByPath = new Map();
   let projectHealthRenderTimer = null;
   let projectContentRevision = 0;
@@ -4319,6 +4369,95 @@
     return duplicates;
   }
 
+  function findTopLevelPropertyOffset(text, start, limit, property){
+    let nesting = 0;
+    for (let cursor = Math.max(0, start); cursor < Math.min(text.length, limit); cursor += 1) {
+      if (text[cursor] === '"') {
+        let end = cursor + 1;
+        let escaped = false;
+        for (; end < limit; end += 1) {
+          if (escaped) escaped = false;
+          else if (text[end] === '\\') escaped = true;
+          else if (text[end] === '"') break;
+        }
+        if (end >= limit) break;
+        let key = '';
+        try { key = JSON.parse(text.slice(cursor, end + 1)); } catch (error) {}
+        let next = end + 1;
+        while (/\s/.test(text[next] || '')) next += 1;
+        if (nesting === 1 && key === property && text[next] === ':') return cursor;
+        cursor = end;
+      } else if (text[cursor] === '{' || text[cursor] === '[') nesting += 1;
+      else if (text[cursor] === '}' || text[cursor] === ']') nesting -= 1;
+    }
+    return null;
+  }
+
+  function validateKnownTypeFields(entry, entryIndex, entryOffset, entryEnd, text, addIssue){
+    const number = value => typeof value === 'number' && Number.isFinite(value);
+    const string = value => typeof value === 'string';
+    const strings = value => Array.isArray(value) && value.every(item => typeof item === 'string');
+    const object = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+    const stringOrTranslation = value => string(value) || (object(value) && Object.entries(value).some(([key]) => ['str', 'str_sp', 'str_pl'].includes(key)) && Object.entries(value).every(([key, text]) => typeof text === 'string' && (['str', 'str_sp', 'str_pl', 'ctxt'].includes(key) || key.startsWith('//'))));
+    const schemas = {
+      monster: {
+        numbers: ['hp', 'speed', 'aggression', 'morale', 'attack_cost', 'melee_dice', 'melee_dice_sides', 'diff', 'melee_skill', 'dodge', 'vision_day', 'vision_night'],
+        arrays: ['special_attacks'],
+        stringArrays: ['flags', 'categories'],
+        stringOrArray: ['species'],
+        strings: ['bodytype', 'default_faction', 'harvest'],
+        translations: ['name'],
+        objects: ['armor', 'path_settings', 'starting_ammo'],
+        boolOrObject: ['upgrades']
+      },
+      recipe: {
+        numbers: ['difficulty', 'result_mult', 'charges', 'decomp_learn'],
+        arrays: ['components', 'tools', 'using'],
+        arrayOrObject: ['qualities', 'proficiencies', 'book_learn'],
+        strings: ['result', 'time', 'skill_used', 'category', 'subcategory'],
+        boolOrArray: ['autolearn'],
+        stringsOrNumberOrArray: ['skills_required']
+      },
+      terrain: {
+        numbers: ['move_cost', 'coverage', 'light_emitted'],
+        stringArrays: ['flags'],
+        strings: ['symbol', 'looks_like', 'transforms_into', 'open', 'close'],
+        colors: ['color'],
+        translations: ['name'],
+        objects: ['bash', 'deconstruct']
+      },
+      furniture: {
+        numbers: ['move_cost_mod', 'required_str', 'coverage', 'light_emitted'],
+        stringArrays: ['flags'],
+        strings: ['symbol', 'looks_like', 'rotates_to', 'open', 'close'],
+        colors: ['color', 'bgcolor'],
+        translations: ['name'],
+        objects: ['bash', 'deconstruct']
+      }
+    };
+    const schema = schemas[String(entry?.type || '').toLowerCase()];
+    if (!schema) return;
+    const checks = [
+      ['numbers', number, 'a finite number'],
+      ['arrays', Array.isArray, 'an array'],
+      ['stringArrays', strings, 'an array of strings'],
+      ['strings', string, 'a string'],
+      ['translations', stringOrTranslation, 'a string or translation object'],
+      ['colors', value => string(value) || Array.isArray(value), 'a string or array'],
+      ['stringOrArray', value => string(value) || strings(value), 'a string or an array of strings'],
+      ['arrayOrObject', value => Array.isArray(value) || object(value), 'an array or object'],
+      ['stringsOrNumberOrArray', value => string(value) || number(value) || Array.isArray(value), 'a string, number, or array'],
+      ['boolOrArray', value => typeof value === 'boolean' || Array.isArray(value), 'a boolean or array'],
+      ['boolOrObject', value => typeof value === 'boolean' || object(value), 'a boolean or object'],
+      ['objects', object, 'an object']
+    ];
+    checks.forEach(([group, predicate, expected]) => (schema[group] || []).forEach(field => {
+      if (!Object.prototype.hasOwnProperty.call(entry, field) || predicate(entry[field])) return;
+      const fieldOffset = findTopLevelPropertyOffset(text, entryOffset, entryEnd, field) ?? entryOffset;
+      addIssue('errors', `entry ${entryIndex} ${String(entry.type).toLowerCase()} field "${field}" must be ${expected}.`, fieldOffset, 'definite', 'type-specific');
+    }));
+  }
+
   function analyzeCDDA(text){
     const report = {
       syntaxOk: false,
@@ -4327,12 +4466,16 @@
       errors: [],
       warnings: [],
       notes: [],
-      issueOffsets: Object.create(null)
+      issueOffsets: Object.create(null),
+      issueProfiles: Object.create(null),
+      issueKinds: Object.create(null)
     };
 
-    const addLocatedIssue = (severity, message, offset) => {
+    const addLocatedIssue = (severity, message, offset, profile = severity === 'error' ? 'definite' : 'likely', kind = 'standard') => {
       report[severity].push(message);
       if (Number.isFinite(offset)) report.issueOffsets[message] = offset;
+      report.issueProfiles[message] = profile;
+      report.issueKinds[message] = kind;
     };
 
     try {
@@ -4345,7 +4488,7 @@
         const duplicateLine = lineAtOffset(text, duplicate.offset);
         const lineStart = text.lastIndexOf('\n', duplicate.offset - 1) + 1;
         const duplicateColumn = duplicate.offset - lineStart + 1;
-        addLocatedIssue('warnings', `Duplicate JSON property "${duplicate.key}" in the same object at line ${duplicateLine}, column ${duplicateColumn}; first occurrence is on line ${firstLine}. JSON readers may keep only one value.`, duplicate.offset);
+            addLocatedIssue('warnings', `Duplicate JSON property "${duplicate.key}" in the same object at line ${duplicateLine}, column ${duplicateColumn}; first occurrence is on line ${firstLine}. JSON readers may keep only one value.`, duplicate.offset, 'likely', 'duplicate-property');
       });
 
       if (!Array.isArray(parsed)) {
@@ -4467,6 +4610,7 @@
               });
             }
           }
+          validateKnownTypeFields(entry, index, entryOffset, entryOffsets[index + 1] ?? text.length, text, addLocatedIssue);
         });
       }
 
@@ -5565,13 +5709,14 @@
     grouped.forEach((projectFiles, projectName) => {
       projectFiles.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
       const existing = projects.find(project => project.name === projectName);
-      const project = { id: existing ? existing.id : nextProjectId++, name: projectName, files: projectFiles };
+      const project = { id: existing ? existing.id : nextProjectId++, name: projectName, rootPath: inferProjectRootPath(projectFiles[0]), files: projectFiles };
       const index = projects.findIndex(item => item.name === projectName);
       if (index >= 0) projects.splice(index, 1, project);
       else projects.push(project);
     });
     projectIndexRevision += 1;
     projectIdIndex = new Map();
+    projectDefinitionIndex = new Map();
     projects.sort((a, b) => a.name.localeCompare(b.name));
     renderProjects();
     refreshProjectFolderOptions();
@@ -5581,6 +5726,7 @@
   function clearProjects(){
     projects = [];
     projectIdIndex = new Map();
+    projectDefinitionIndex = new Map();
     projectIndexRevision += 1;
     projectContentRevision += 1;
     clearProjectValidationResults();
@@ -5592,6 +5738,25 @@
   function invalidateProjectIdIndex(){
     projectIndexRevision += 1;
     projectIdIndex = new Map();
+    projectDefinitionIndex = new Map();
+  }
+
+  function inferProjectRootPath(item){
+    if (!item?.filePath) return '';
+    const normalized = String(item.filePath).replace(/[\\/]+$/, '');
+    const separatorIndex = Math.max(normalized.lastIndexOf('/'), normalized.lastIndexOf('\\'));
+    let root = normalized;
+    const levels = String(item.relativePath || '').split('/').filter(Boolean).length;
+    for (let index = 0; index < levels; index += 1) {
+      const cut = Math.max(root.lastIndexOf('/'), root.lastIndexOf('\\'));
+      if (cut <= 0) break;
+      root = root.slice(0, cut);
+    }
+    return root || (separatorIndex >= 0 ? normalized.slice(0, separatorIndex) : normalized);
+  }
+
+  function projectPersistenceKey(project){
+    return String(project?.rootPath || `project:${project?.name || ''}`).replace(/\\/g, '/').replace(/\/$/, '').toLowerCase();
   }
 
   function allProjectFiles(predicate = () => true){
@@ -5690,7 +5855,7 @@
   }
 
   function setProjectToolsMode(mode){
-    const panes = { validate: 'projectValidatePane', search: 'projectSearchPane', references: 'projectReferencesPane', ids: 'projectIdsPane', refactor: 'projectRefactorPane' };
+    const panes = { validate: 'projectValidatePane', search: 'projectSearchPane', references: 'projectReferencesPane', dependencies: 'projectDependenciesPane', ids: 'projectIdsPane', refactor: 'projectRefactorPane' };
     Object.entries(panes).forEach(([key, id]) => {
       document.getElementById(id).hidden = key !== mode;
       const button = projectToolsBackdrop.querySelector(`[data-project-mode="${key}"]`);
@@ -5705,9 +5870,81 @@
     projectToolsBackdrop.classList.remove('hidden');
     if (mode === 'search') projectSearchInput.focus();
     else if (mode === 'references') projectReferenceInput.focus();
+    else if (mode === 'dependencies') document.getElementById('runDependencyGraphBtn').focus();
     else if (mode === 'ids') { renderProjectIdCatalog(); idCatalogSearchInput.focus(); }
     else if (mode === 'refactor') refactorOldIdInput.focus();
     else document.getElementById('runProjectValidationBtn').focus();
+  }
+
+  function renderOfflineSnapshotStatus(){
+    importOfflineSnapshotBtn.disabled = !window.cddaDesktop?.importOfflineSnapshot || offlineSnapshotImportInProgress;
+    if (!offlineGameDataSnapshot) {
+      offlineSnapshotStatus.textContent = window.cddaDesktop?.importOfflineSnapshot ? 'No offline game-data snapshot imported.' : 'Offline data snapshots are available in the desktop app.';
+      removeOfflineSnapshotBtn.disabled = true;
+      return;
+    }
+    const snapshot = offlineGameDataSnapshot;
+    offlineSnapshotStatus.textContent = `${snapshot.rootName || 'Game data'} · ${Number(snapshot.definitionCount || 0).toLocaleString()} typed definitions from ${Number(snapshot.parsedFiles || 0).toLocaleString()} JSON files${snapshot.truncated ? ' · import reached the safety cap; this index is partial' : ''}.`;
+    removeOfflineSnapshotBtn.disabled = false;
+  }
+
+  async function loadOfflineSnapshot(){
+    if (!window.cddaDesktop?.getOfflineSnapshot) { offlineSnapshotLoaded = true; renderOfflineSnapshotStatus(); return; }
+    try {
+      const result = await window.cddaDesktop.getOfflineSnapshot();
+      if (result?.ok) offlineGameDataSnapshot = result.snapshot || null;
+      offlineSnapshotLoaded = true;
+      renderOfflineSnapshotStatus();
+    } catch (error) {
+      offlineSnapshotLoaded = true;
+      offlineSnapshotStatus.textContent = `Could not load offline data snapshot: ${error?.message || 'unknown error'}`;
+    }
+  }
+
+  async function importOfflineSnapshot(){
+    if (offlineSnapshotImportInProgress || !window.cddaDesktop?.importOfflineSnapshot) return;
+    offlineSnapshotImportInProgress = true;
+    importOfflineSnapshotBtn.disabled = true;
+    removeOfflineSnapshotBtn.disabled = true;
+    offlineSnapshotStatus.textContent = 'Choose the game data JSON folder (usually data/json); indexing can take a while.';
+    try {
+      const result = await window.cddaDesktop.importOfflineSnapshot();
+      if (result?.canceled) {
+        renderOfflineSnapshotStatus();
+        return;
+      }
+      if (!result?.ok) throw new Error(result?.error || 'Import failed');
+      offlineGameDataSnapshot = result.snapshot;
+      invalidateProjectIdIndex();
+      markProjectValidationStale();
+      renderOfflineSnapshotStatus();
+      setStatus(`Offline game data indexed · ${Number(result.snapshot.definitionCount || 0).toLocaleString()} definitions`, 'ok');
+    } catch (error) {
+      offlineSnapshotStatus.textContent = `Import failed: ${error?.message || 'unknown error'}`;
+      setStatus('Offline game-data import failed', 'err');
+    } finally {
+      offlineSnapshotImportInProgress = false;
+      importOfflineSnapshotBtn.disabled = false;
+      renderOfflineSnapshotStatus();
+    }
+  }
+
+  async function removeOfflineSnapshot(){
+    if (!offlineGameDataSnapshot || !window.cddaDesktop?.removeOfflineSnapshot) return;
+    if (!window.confirm('Remove the saved offline game-data index from this app? The original game files will not be touched.')) return;
+    removeOfflineSnapshotBtn.disabled = true;
+    try {
+      const result = await window.cddaDesktop.removeOfflineSnapshot();
+      if (!result?.ok) throw new Error(result?.error || 'Removal failed');
+      offlineGameDataSnapshot = null;
+      invalidateProjectIdIndex();
+      markProjectValidationStale();
+      renderOfflineSnapshotStatus();
+      setStatus('Offline game-data snapshot removed', 'ok');
+    } catch (error) {
+      setStatus(error?.message || 'Could not remove offline snapshot', 'err');
+      renderOfflineSnapshotStatus();
+    }
   }
 
   function projectItemTab(item){
@@ -6144,13 +6381,22 @@
       const nextEntryOffset = offsets[index + 1] ?? text.length;
       const seenInEntry = new Set();
       [['id', entry.id], ['abstract', entry.abstract], ['ident', entry.ident]].forEach(([field, value]) => {
-        if (typeof value !== 'string' || !value.trim()) return;
-        const namespace = field === 'ident' ? `${type || 'ident'}:ident` : (type ? `${type}:id` : field);
-        const key = `${namespace}\u0000${value}`;
-        if (seenInEntry.has(key)) return;
-        seenInEntry.add(key);
-        const valueOffset = findTopLevelStringPropertyOffset(text, entryOffset, nextEntryOffset, field, value) ?? entryOffset;
-        records.push({ id: value, namespace, field, entryIndex: index, isTopLevelArray: Array.isArray(parsed), project, item, offset: valueOffset, line: lineAtOffset(text, valueOffset) });
+        const values = field === 'id' && Array.isArray(value) ? value : [value];
+        const arrayOffsets = field === 'id' && Array.isArray(value) ? findTopLevelStringArrayOffsets(text, entryOffset, nextEntryOffset, field) : [];
+        values.forEach((id, aliasIndex) => {
+          if (typeof id !== 'string' || !id.trim()) return;
+          const namespace = field === 'ident' ? `${type || 'ident'}:ident` : (type ? `${type}:id` : field);
+          const key = `${namespace}\u0000${id}`;
+          if (seenInEntry.has(key)) return;
+          seenInEntry.add(key);
+          const valueOffset = Array.isArray(value)
+            ? (arrayOffsets[aliasIndex]?.offset ?? entryOffset)
+            : (findTopLevelStringPropertyOffset(text, entryOffset, nextEntryOffset, field, id) ?? entryOffset);
+          const nameValue = entry.name;
+          const displayName = typeof nameValue === 'string' ? nameValue : (nameValue && typeof nameValue === 'object' ? nameValue.str : '');
+          const preview = [displayName, typeof entry.description === 'string' ? entry.description : '', Array.isArray(entry.subtypes) ? entry.subtypes.join(', ') : ''].filter(Boolean).join(' · ').replace(/\s+/g, ' ').slice(0, 220);
+          records.push({ id, namespace, type, field, aliasIndex: Array.isArray(value) ? aliasIndex : null, entryIndex: index, isTopLevelArray: Array.isArray(parsed), project, item, offset: valueOffset, line: lineAtOffset(text, valueOffset), preview });
+        });
       });
     });
     return records;
@@ -6274,17 +6520,402 @@
     } finally { button.disabled = false; }
   }
 
-  async function runWholeProjectValidation(){
+  function projectValidationTextFingerprint(text){
+    let hash = 2166136261;
+    const value = String(text || '');
+    for (let index = 0; index < value.length; index += 1) hash = Math.imul(hash ^ value.charCodeAt(index), 16777619);
+    return `text:${value.length}:${(hash >>> 0).toString(16)}`;
+  }
+
+  async function getProjectValidationDiskFingerprints(files){
+    const fingerprints = new Map();
+    if (!window.cddaDesktop?.getFileFingerprints) return fingerprints;
+    const paths = files.filter(({ item }) => item.filePath);
+    for (let index = 0; index < paths.length; index += 300) {
+      const batch = paths.slice(index, index + 300).map(({ item }) => ({ id: item.filePath, filePath: item.filePath }));
+      try {
+        const results = await window.cddaDesktop.getFileFingerprints(batch);
+        (Array.isArray(results) ? results : []).forEach(result => {
+          if (result?.filePath) fingerprints.set(String(result.filePath).toLowerCase(), result.fingerprint || null);
+        });
+      } catch (error) {}
+    }
+    return fingerprints;
+  }
+
+  function projectValidationCurrentFingerprint(project, item, diskFingerprints){
+    const tab = projectFileTab(item);
+    if (tab?.dirty) return projectValidationTextFingerprint(tab.text);
+    const pathKey = String(item.filePath || '').toLowerCase();
+    if (pathKey && diskFingerprints.has(pathKey)) return diskFingerprints.get(pathKey);
+    return item.fingerprint || null;
+  }
+
+  function projectValidationProfileLabel(profile){
+    if (profile === 'definite') return 'DEFINITE ERROR';
+    if (profile === 'likely') return 'LIKELY ISSUE';
+    if (profile === 'needs-game-data') return 'NEEDS GAME DATA';
+    return 'CHECK';
+  }
+
+  function projectValidationIssueSignature(issue){
+    const message = String(issue.message || '')
+      .replace(/\s*This reference appears \d+ times in the open files\./g, '')
+      .replace(/ at .*?(?:\. Duplicate|\. It may|$)/g, '');
+    const identity = [
+      String(issue.projectKey || '').toLowerCase(), String(issue.relativePath || '').toLowerCase(), issue.kind || 'standard', issue.severity || 'warning',
+      issue.confidence || 'likely', issue.jsonPointer || '', issue.jsonValue || '',
+      issue.kind === 'duplicate' ? String(issue.sourceExcerpt || '').trim() : message
+    ];
+    return JSON.stringify(identity);
+  }
+
+  function projectDismissalStorageKey(project){
+    return `cdda-project-validation-dismissals-v1:${encodeURIComponent(projectPersistenceKey(project))}`;
+  }
+
+  function loadProjectDismissals(project){
+    const identity = projectPersistenceKey(project);
+    if (projectDismissalCache.has(identity)) return projectDismissalCache.get(identity);
+    try {
+      const parsed = JSON.parse(localStorage.getItem(projectDismissalStorageKey(project)) || '{}');
+      const result = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+      projectDismissalCache.set(identity, result);
+      return result;
+    } catch (error) {
+      const result = {};
+      projectDismissalCache.set(identity, result);
+      return result;
+    }
+  }
+
+  function getProjectIssueDismissal(issue){
+    const project = projects.find(item => item.id === issue.projectId);
+    if (!project) return null;
+    return loadProjectDismissals(project)[projectValidationIssueSignature(issue)] || null;
+  }
+
+  function saveProjectIssueDismissal(issue, reason){
+    const project = projects.find(item => item.id === issue.projectId);
+    if (!project) return false;
+    const dismissals = loadProjectDismissals(project);
+    dismissals[projectValidationIssueSignature(issue)] = { reason, dismissedAt: new Date().toISOString() };
+    try { localStorage.setItem(projectDismissalStorageKey(project), JSON.stringify(dismissals)); projectDismissalCache.set(projectPersistenceKey(project), dismissals); return true; }
+    catch (error) { return false; }
+  }
+
+  function removeProjectIssueDismissal(issue){
+    const project = projects.find(item => item.id === issue.projectId);
+    if (!project) return false;
+    const dismissals = loadProjectDismissals(project);
+    delete dismissals[projectValidationIssueSignature(issue)];
+    try { localStorage.setItem(projectDismissalStorageKey(project), JSON.stringify(dismissals)); projectDismissalCache.set(projectPersistenceKey(project), dismissals); return true; }
+    catch (error) { return false; }
+  }
+
+  function dismissProjectValidationIssue(issue){
+    const reason = window.prompt('Why should this project-specific advisory be hidden? The reason is saved with this project and does not change JSON.', 'Known intentional pattern');
+    if (reason === null) return;
+    if (!reason.trim()) { setStatus('Enter a short reason so this dismissal is understandable later', 'warn'); return; }
+    if (!saveProjectIssueDismissal(issue, reason.trim())) { setStatus('Could not save this dismissal in app storage', 'err'); return; }
+    renderProjectValidationDisplay();
+  }
+
+  function restoreProjectValidationIssue(issue){
+    if (removeProjectIssueDismissal(issue)) renderProjectValidationDisplay();
+  }
+
+  function createProjectValidationIssue(doc, descriptor){
+    const source = descriptor.sourceText || '';
+    const parsed = doc.parsed;
+    const message = descriptor.message || 'Validation finding';
+    const requestedOffset = Math.max(0, Number(descriptor.offset) || 0);
+    const safeOffset = source ? Math.min(requestedOffset, Math.max(0, source.length - 1)) : requestedOffset;
+    const selection = Number.isFinite(descriptor.highlightLength)
+      ? { offset: safeOffset, length: descriptor.highlightLength }
+      : validationIssueSelection(source, safeOffset, message);
+    const line = descriptor.line || (source ? lineAtOffset(source, selection.offset) : 1);
+    const context = descriptor.jsonPointer !== undefined
+      ? { jsonPointer: descriptor.jsonPointer, jsonValue: descriptor.jsonValue || '', sourceExcerpt: descriptor.sourceExcerpt || (source ? sourceLineDetails(source, selection.offset).lineText.trim().slice(0, 220) : '') }
+      : validationJsonContext(source, parsed, selection.offset, message);
+    return {
+      severity: descriptor.severity || 'warning',
+      confidence: descriptor.confidence || 'likely',
+      kind: descriptor.kind || 'standard',
+      project: doc.project.name,
+      projectId: doc.project.id,
+      projectKey: projectPersistenceKey(doc.project),
+      relativePath: doc.item.relativePath,
+      line,
+      message,
+      filePath: doc.item.filePath || '',
+      offset: selection.offset,
+      highlightLength: selection.length,
+      quickFix: Boolean(descriptor.quickFix),
+      ...context
+    };
+  }
+
+  function renderProjectValidationFinding(issue, doc, container){
+    const dismissal = getProjectIssueDismissal(issue);
+    const contextText = [
+      issue.jsonPointer !== null && issue.jsonPointer !== undefined ? `JSON Pointer ${issue.jsonPointer || '(root)'}` : '',
+      issue.jsonValue ? `JSON value ${issue.jsonValue}` : '',
+      issue.sourceExcerpt ? `Source ${issue.sourceExcerpt}` : ''
+    ].filter(Boolean).join(' · ');
+    const profile = projectValidationProfileLabel(issue.confidence);
+    const compareLabel = issue.comparisonStatus ? `${issue.comparisonStatus.toUpperCase()} · ` : '';
+    const title = `${compareLabel}${profile} · ${issue.project}/${issue.relativePath}${issue.line ? ` · line ${issue.line}` : ''}`;
+    const detail = `${issue.message}${contextText ? ` · ${contextText}` : ''}${dismissal ? ` · Dismissed: ${dismissal.reason}` : ''} · Click to highlight.`;
+    const result = makeProjectToolResult(container, issue.severity, title, detail, () => openProjectItemAt(doc.item, issue.line || 1, issue.offset || 0, issue.highlightLength || 1));
+    result.dataset.validationSeverity = issue.severity;
+    result.dataset.validationConfidence = issue.confidence;
+    result.dataset.validationKind = issue.kind || 'standard';
+    result.dataset.validationComparison = issue.comparisonStatus || 'all';
+    result.dataset.validationDismissed = dismissal ? 'true' : 'false';
+    result.dataset.validationSearch = projectValidationIssueSearchText(issue);
+    if (issue.quickFix && doc.sourceText.length <= 500000 && trailingCommaFix(doc.sourceText)) {
+      addProjectValidationQuickFix(result, doc.item, issue.line, issue.offset, issue.highlightLength);
+    }
+    let row = result.parentElement;
+    if (!row.classList.contains('project-validation-result-row')) {
+      row = document.createElement('div');
+      row.className = 'project-validation-result-row';
+      result.parentNode.insertBefore(row, result);
+      row.appendChild(result);
+    }
+    const status = document.createElement('span');
+    status.className = `project-validation-status ${issue.comparisonStatus || ''}`;
+    status.textContent = issue.comparisonStatus ? issue.comparisonStatus[0].toUpperCase() + issue.comparisonStatus.slice(1) : 'Current';
+    status.title = issue.comparisonStatus === 'fixed' ? 'This finding appeared in the previous run and is absent now.' : (issue.comparisonStatus ? `Finding is ${issue.comparisonStatus} compared with the previous validation run.` : 'No previous validation run to compare yet.');
+    row.appendChild(status);
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'btn project-validation-action';
+    action.textContent = dismissal ? 'Restore' : 'Dismiss…';
+    action.title = dismissal ? `Restore advisory · saved reason: ${dismissal.reason}` : 'Hide this finding for this project and save a reason';
+    action.addEventListener('click', event => {
+      event.stopPropagation();
+      if (dismissal) restoreProjectValidationIssue(issue);
+      else dismissProjectValidationIssue(issue);
+    });
+    row.appendChild(action);
+    if (dismissal) row.classList.add('is-dismissed');
+    return result;
+  }
+
+  function renderProjectValidationDisplay(){
+    projectValidateResults.innerHTML = '';
+    if (!projectValidationDisplayIssues.length) {
+      projectValidateResults.innerHTML = `<div class="help">No issues found in ${Math.max(0, projectValidationFileCount).toLocaleString()} JSON file${projectValidationFileCount === 1 ? '' : 's'}.</div>`;
+      applyProjectValidationFilters();
+      return;
+    }
+    const itemByIssueKey = new Map(allProjectFiles().map(({ project, item }) => [`${project.id}:${String(item.filePath || item.relativePath).toLowerCase()}`, { project, item }]));
+    projectValidationDisplayIssues.forEach(issue => {
+      const found = itemByIssueKey.get(`${issue.projectId}:${String(issue.filePath || issue.relativePath).toLowerCase()}`);
+      const project = found?.project || projects.find(entry => entry.id === issue.projectId) || { id: issue.projectId, name: issue.project || 'Project', files: [] };
+      const item = found?.item || { filePath: issue.filePath, name: issue.relativePath, relativePath: issue.relativePath };
+      const snapshot = projectValidationDocumentSnapshots.get(projectHealthKey(project, item));
+      renderProjectValidationFinding(issue, { project, item, sourceText: snapshot?.quickFixSource || '' }, projectValidateResults);
+    });
+    applyProjectValidationFilters();
+  }
+
+  function validationDescriptorForSource(text, parsed, report, severity, message){
+    const offsets = report.syntaxOk ? topLevelValueOffsets(text) : [];
+    const rawOffset = offsetForProjectIssue(message, report, offsets, text);
+    const selection = validationIssueSelection(text, rawOffset, message);
+    const context = validationJsonContext(text, parsed, selection.offset, message);
+    return {
+      severity,
+      confidence: report.issueProfiles?.[message] || (severity === 'error' ? 'definite' : 'likely'),
+      kind: report.issueKinds?.[message] || (message === 'The file is a valid JSON array but it is empty.' ? 'empty' : 'standard'),
+      message,
+      offset: selection.offset,
+      line: lineAtOffset(text, selection.offset),
+      highlightLength: selection.length,
+      ...context,
+      quickFix: !report.syntaxOk
+    };
+  }
+
+  function collectProjectValidationReferences(parsed, text, project, item){
+    const entries = Array.isArray(parsed) ? parsed : [parsed];
+    const offsets = topLevelValueOffsets(text);
+    const references = [];
+    const referenceFields = {
+      monster: { looks_like: 'MONSTER', burn_into: 'MONSTER', zombify_into: 'MONSTER', fungalize_into: 'MONSTER', revert_to_itype: 'ITEM', mech_weapon: 'ITEM', mech_battery: 'ITEM' },
+      recipe: { result: 'ITEM' },
+      terrain: { looks_like: 'terrain', transforms_into: 'terrain', open: 'terrain', close: 'terrain', trap: 'trap' },
+      furniture: { looks_like: 'furniture', rotates_to: 'furniture', open: 'furniture', close: 'furniture', deployed_item: 'ITEM', crafting_pseudo_item: 'ITEM' }
+    };
+    entries.forEach((entry, entryIndex) => {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return;
+      const type = String(entry.type || '').toLowerCase();
+      const start = Array.isArray(parsed) ? (offsets[entryIndex] ?? 0) : 0;
+      const end = Array.isArray(parsed) ? (offsets[entryIndex + 1] ?? text.length) : text.length;
+      const addReference = (field, value, targetType) => {
+        if (typeof value !== 'string' || !value.trim()) return;
+        const valueOffset = findTopLevelStringPropertyOffset(text, start, end, field, value) ?? start;
+        references.push({ field, value, targetType: targetType.toLowerCase(), entryIndex, offset: valueOffset, line: lineAtOffset(text, valueOffset), pointer: `/${Array.isArray(parsed) ? `${entryIndex}/` : ''}${field}` });
+      };
+      if (typeof entry['copy-from'] === 'string' && entry['copy-from'].trim() && type) addReference('copy-from', entry['copy-from'], type);
+      Object.entries(referenceFields[type] || {}).forEach(([field, targetType]) => addReference(field, entry[field], targetType));
+    });
+    return references;
+  }
+
+  function collectProjectValidationDefinitions(parsed, text){
+    const entries = Array.isArray(parsed) ? parsed : [parsed];
+    const offsets = topLevelValueOffsets(text);
+    return entries.flatMap((entry, entryIndex) => {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.type !== 'string') return [];
+      const type = entry.type.toLowerCase();
+      const start = Array.isArray(parsed) ? (offsets[entryIndex] ?? 0) : 0;
+      const end = Array.isArray(parsed) ? (offsets[entryIndex + 1] ?? text.length) : text.length;
+      const names = [];
+      const ids = Array.isArray(entry.id) ? entry.id : [entry.id];
+      ids.forEach((value, aliasIndex) => {
+        if (typeof value === 'string' && value.trim()) names.push({ value, field: 'id', aliasIndex: Array.isArray(entry.id) ? aliasIndex : null });
+      });
+      if (typeof entry.abstract === 'string' && entry.abstract.trim()) names.push({ value: entry.abstract, field: 'abstract', aliasIndex: null });
+      const identity = names[0]?.value || `entry ${entryIndex}`;
+      const copyFrom = typeof entry['copy-from'] === 'string' ? entry['copy-from'] : '';
+      const copyOffset = copyFrom ? (findTopLevelStringPropertyOffset(text, start, end, 'copy-from', copyFrom) ?? start) : start;
+      return [{
+        type,
+        names,
+        identity,
+        copyFrom,
+        entryIndex,
+        nodeKey: `${start}:${entryIndex}`,
+        offset: copyOffset,
+        line: lineAtOffset(text, copyOffset),
+        pointer: `/${Array.isArray(parsed) ? `${entryIndex}/` : ''}copy-from`
+      }];
+    });
+  }
+
+  function findTopLevelStringArrayOffsets(text, start, limit, property){
+    let nesting = 0;
+    for (let cursor = Math.max(0, start); cursor < Math.min(text.length, limit); cursor += 1) {
+      if (text[cursor] === '"') {
+        let end = cursor + 1;
+        let escaped = false;
+        for (; end < limit; end += 1) {
+          if (escaped) escaped = false;
+          else if (text[end] === '\\') escaped = true;
+          else if (text[end] === '"') break;
+        }
+        if (end >= limit) break;
+        let token = '';
+        try { token = JSON.parse(text.slice(cursor, end + 1)); } catch (error) {}
+        let next = end + 1;
+        while (/\s/.test(text[next] || '')) next += 1;
+        if (nesting === 1 && token === property && text[next] === ':') {
+          let arrayStart = next + 1;
+          while (/\s/.test(text[arrayStart] || '')) arrayStart += 1;
+          if (text[arrayStart] !== '[') return [];
+          const values = [];
+          let arrayDepth = 1;
+          for (let index = arrayStart + 1; index < limit && arrayDepth; index += 1) {
+            if (text[index] === '"') {
+              let stringEnd = index + 1;
+              let stringEscaped = false;
+              for (; stringEnd < limit; stringEnd += 1) {
+                if (stringEscaped) stringEscaped = false;
+                else if (text[stringEnd] === '\\') stringEscaped = true;
+                else if (text[stringEnd] === '"') break;
+              }
+              if (stringEnd >= limit) break;
+              if (arrayDepth === 1) {
+                try { values.push({ value: JSON.parse(text.slice(index, stringEnd + 1)), offset: index }); } catch (error) {}
+              }
+              index = stringEnd;
+            } else if (text[index] === '[') arrayDepth += 1;
+            else if (text[index] === ']') arrayDepth -= 1;
+          }
+          return values;
+        }
+        cursor = end;
+      } else if (text[cursor] === '{' || text[cursor] === '[') nesting += 1;
+      else if (text[cursor] === '}' || text[cursor] === ']') nesting -= 1;
+    }
+    return [];
+  }
+
+  async function createProjectValidationSnapshot(project, item, fingerprint){
+    const source = await readProjectFile(item);
+    const text = source.text;
+    const effectiveFingerprint = source.dirty ? projectValidationTextFingerprint(source.text) : (source.fingerprint || fingerprint || projectValidationTextFingerprint(source.text));
+    const snapshot = { fingerprint: effectiveFingerprint, dirty: Boolean(source.dirty), baseIssues: [], duplicates: [], definitions: [], references: [], modInfos: [], unreadable: '', clean: false, quickFixSource: '' };
+    const doc = { project, item, sourceText: text, parsed: null };
+    if (!text.trim()) {
+      snapshot.baseIssues.push({ severity: 'warning', confidence: 'likely', kind: 'empty', message: 'File is empty and contains no JSON data.', offset: 0, highlightLength: 0, jsonPointer: '', jsonValue: '(empty)', sourceExcerpt: '' });
+      snapshot.clean = false;
+      return snapshot;
+    }
+    const report = analyzeCDDA(text);
+    if (!report.syntaxOk && text.length <= 500000) snapshot.quickFixSource = text;
+    doc.parsed = report.parsed;
+    const rawIssues = report.syntaxOk
+      ? [...report.errors.map(message => ({ severity: 'error', message })), ...report.warnings.filter(message => !message.startsWith('Duplicate id ')).map(message => ({ severity: 'warning', message }))]
+      : [{ severity: 'error', message: report.syntaxError || 'Invalid JSON syntax' }];
+    rawIssues.forEach(raw => snapshot.baseIssues.push(validationDescriptorForSource(text, report.parsed, report, raw.severity, raw.message)));
+    snapshot.clean = rawIssues.length === 0;
+    if (!report.syntaxOk) return snapshot;
+    const offsets = Array.isArray(report.parsed) ? topLevelValueOffsets(text) : [0];
+    snapshot.duplicates = collectTopLevelProjectIds(report.parsed, text, project, item, offsets).map(record => {
+      const sourceLine = sourceLineDetails(text, record.offset);
+      return { ...record, ...sourceLine, jsonPointer: `/${record.isTopLevelArray ? `${record.entryIndex}/` : ''}${record.field}`, jsonValue: JSON.stringify(record.id) };
+    }).filter(record => record.lineText.trim());
+    snapshot.definitions = collectProjectValidationDefinitions(report.parsed, text);
+    snapshot.references = collectProjectValidationReferences(report.parsed, text, project, item);
+    const entries = Array.isArray(report.parsed) ? report.parsed : [report.parsed];
+    entries.forEach((entry, entryIndex) => {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry) || String(entry.type || '').toUpperCase() !== 'MOD_INFO') return;
+      const start = Array.isArray(report.parsed) ? (offsets[entryIndex] ?? 0) : 0;
+      const end = Array.isArray(report.parsed) ? (offsets[entryIndex + 1] ?? text.length) : text.length;
+      const dependencyValues = Array.isArray(entry.dependencies) && entry.dependencies.every(value => typeof value === 'string') ? findTopLevelStringArrayOffsets(text, start, end, 'dependencies') : [];
+      snapshot.modInfos.push({
+        id: typeof entry.id === 'string' ? entry.id : '',
+        name: typeof entry.name === 'string' ? entry.name : '',
+        entryIndex,
+        offset: findTopLevelStringPropertyOffset(text, start, end, 'id', entry.id) ?? start,
+        line: lineAtOffset(text, findTopLevelStringPropertyOffset(text, start, end, 'id', entry.id) ?? start),
+        pointer: `/${Array.isArray(report.parsed) ? `${entryIndex}/` : ''}id`,
+        dependencies: (Array.isArray(entry.dependencies) ? entry.dependencies : []).flatMap((value, depIndex) => typeof value === 'string' ? [{ value, offset: dependencyValues[depIndex]?.offset ?? start, line: lineAtOffset(text, dependencyValues[depIndex]?.offset ?? start), pointer: `/${Array.isArray(report.parsed) ? `${entryIndex}/` : ''}dependencies/${depIndex}` }] : [])
+      });
+    });
+    return snapshot;
+  }
+
+  async function runWholeProjectValidation(options = {}){
+    if (!offlineSnapshotLoaded) await loadOfflineSnapshot();
+    const changedOnly = Boolean(options.changedOnly && projectValidationHasRun);
+    const hadPreviousRun = projectValidationHasRun;
+    const currentProjectScope = new Set(allProjectFiles(isJSONProjectFile).map(({ project, item }) => `${projectPersistenceKey(project)}::${item.relativePath.toLowerCase()}`));
+    const comparisonBaseline = hadPreviousRun ? projectValidationIssues.filter(issue => {
+      const project = projects.find(item => item.id === issue.projectId);
+      const projectKey = issue.projectKey || (project ? projectPersistenceKey(project) : '');
+      return currentProjectScope.has(`${projectKey}::${String(issue.relativePath || '').toLowerCase()}`);
+    }).map(issue => ({ ...issue })) : [];
     const validationRevision = projectContentRevision;
+    const indexRevision = projectIndexRevision;
     const files = allProjectFiles(isJSONProjectFile);
+    const fullButton = document.getElementById('runProjectValidationBtn');
     projectValidateResults.innerHTML = '';
     projectValidationIssues = [];
+    projectValidationDisplayIssues = [];
     projectValidationFileCount = files.length;
     projectValidationHasRun = false;
     projectValidationStale = false;
     projectHealthByPath = new Map();
     projectValidationSearchInput.disabled = true;
+    projectValidationCompareFilter.disabled = true;
     projectValidationSeverityFilter.disabled = true;
+    projectValidationConfidenceFilter.disabled = true;
     projectValidationShowDuplicates.disabled = true;
     projectValidationShowEmptyFiles.disabled = true;
     projectValidationFilterStatus.textContent = 'Validation is running…';
@@ -6292,172 +6923,285 @@
     exportProjectReportBtn.disabled = true;
     exportFilteredProjectReportBtn.disabled = true;
     clearProjectValidationBtn.disabled = true;
+    runChangedProjectValidationBtn.disabled = true;
+    fullButton.disabled = true;
     if (!files.length) {
       projectValidateResults.innerHTML = '<div class="help">Open a project folder first. Only .json files are sent to the JSON/CDDA validator.</div>';
       projectValidateStatus.textContent = 'No project JSON files';
       projectValidationFilterStatus.textContent = 'Open a project to enable filters.';
+      fullButton.disabled = false;
       renderProjects();
       return;
     }
-    const button = document.getElementById('runProjectValidationBtn');
-    button.disabled = true;
-    let issueCount = 0;
-    let validCount = 0;
-    let failedCount = 0;
-    let duplicateLineCount = 0;
-    let emptyFileCount = 0;
-    const cleanFileKeys = new Set();
-    const duplicateLinesByProject = new Map();
-    const reportIssues = [];
+
+    let changedFileCount = 0;
+    let reusedFileCount = 0;
     try {
+      const diskFingerprints = changedOnly ? await getProjectValidationDiskFingerprints(files) : new Map();
+      const nextSnapshots = new Map();
+      const docs = [];
       for (let index = 0; index < files.length; index += 1) {
-        if (validationRevision !== projectContentRevision) break;
+        if (validationRevision !== projectContentRevision || indexRevision !== projectIndexRevision) break;
         const { project, item } = files[index];
-        projectValidateStatus.textContent = `Checking ${index + 1}/${files.length}: ${item.relativePath}`;
-        const healthKey = projectHealthKey(project, item);
-        const health = { errors: 0, warnings: 0, unreadable: false, validated: true };
-        try {
-          const source = await readProjectFile(item);
-          if (!source.text.trim()) {
-            const message = 'File is empty and contains no JSON data.';
-            issueCount += 1;
-            emptyFileCount += 1;
-            health.warnings += 1;
-            projectHealthByPath.set(healthKey, health);
-            const validationIssue = { severity: 'warning', kind: 'empty', project: project.name, relativePath: item.relativePath, line: null, message, filePath: item.filePath || '', empty: true, offset: 0, highlightLength: 0 };
-            reportIssues.push(validationIssue);
-            const result = makeProjectToolResult(projectValidateResults, 'warning', `${project.name}/${item.relativePath} · empty file`, `${message} Click to open the file.`, () => openProjectItemAt(item, 1, 0, 0));
-            result.dataset.validationSeverity = 'warning';
-            result.dataset.validationKind = 'empty';
-            result.dataset.validationSearch = projectValidationIssueSearchText(validationIssue);
-            await new Promise(resolve => setTimeout(resolve, 0));
-            continue;
+        projectValidateStatus.textContent = `${changedOnly ? 'Checking changes' : 'Checking'} ${index + 1}/${files.length}: ${item.relativePath}`;
+        const key = projectHealthKey(project, item);
+        const previous = projectValidationDocumentSnapshots.get(key);
+        const currentFingerprint = projectValidationCurrentFingerprint(project, item, diskFingerprints);
+        let snapshot = null;
+        if (changedOnly && previous && currentFingerprint && previous.fingerprint === currentFingerprint) {
+          snapshot = previous;
+          reusedFileCount += 1;
+        } else {
+          changedFileCount += 1;
+          try {
+            snapshot = await createProjectValidationSnapshot(project, item, currentFingerprint);
+          } catch (error) {
+            snapshot = { fingerprint: null, dirty: false, baseIssues: [], duplicates: [], definitions: [], references: [], modInfos: [], clean: false, unreadable: error?.message || 'Read failed' };
           }
-          const report = analyzeCDDA(source.text);
-          const offsets = report.syntaxOk ? topLevelValueOffsets(source.text) : [];
-          const issues = report.syntaxOk
-            ? [...report.errors.map(message => ({ severity: 'error', message, kind: 'standard' })), ...report.warnings.filter(message => !message.startsWith('Duplicate id ')).map(message => ({ severity: 'warning', message, kind: message.startsWith('Duplicate JSON property ') ? 'duplicate-property' : (message === 'The file is a valid JSON array but it is empty.' ? 'empty' : 'standard') }))]
-            : [{ severity: 'error', message: report.syntaxError || 'Invalid JSON syntax' }];
-          const fileKey = `${project.id}:${item.filePath || item.relativePath}`;
-          if (!issues.length) {
-            validCount += 1;
-            cleanFileKeys.add(fileKey);
-          }
-          for (const issue of issues) {
-            issueCount += 1;
-            if (issue.kind === 'empty') emptyFileCount += 1;
-            if (issue.severity === 'error') health.errors += 1;
-            else health.warnings += 1;
-            const guessedOffset = offsetForProjectIssue(issue.message, report, offsets, source.text);
-            const selection = validationIssueSelection(source.text, guessedOffset, issue.message);
-            const offset = selection.offset;
-            const line = lineAtOffset(source.text, offset);
-            const context = validationJsonContext(source.text, report.parsed, offset, issue.message);
-            const contextText = [context.jsonPointer !== null ? `JSON Pointer ${context.jsonPointer || '(root)'}` : '', context.jsonValue ? `JSON value ${context.jsonValue}` : '', context.sourceExcerpt ? `Source ${context.sourceExcerpt}` : ''].filter(Boolean).join(' · ');
-            const validationIssue = { severity: issue.severity, kind: issue.kind || 'standard', project: project.name, relativePath: item.relativePath, line, message: issue.message, filePath: item.filePath || '', offset, highlightLength: selection.length, ...context };
-            reportIssues.push(validationIssue);
-            const result = makeProjectToolResult(projectValidateResults, issue.severity, `${project.name}/${item.relativePath} · line ${line}`, `${issue.message}${contextText ? ` · ${contextText}` : ''} · Click to highlight.`, () => openProjectItemAt(item, line, offset, selection.length));
-            result.dataset.validationSeverity = issue.severity;
-            result.dataset.validationKind = issue.kind || 'standard';
-            result.dataset.validationSearch = projectValidationIssueSearchText(validationIssue);
-            if (!report.syntaxOk && source.text.length <= 500000 && trailingCommaFix(source.text)) {
-              addProjectValidationQuickFix(result, item, line, offset, selection.length);
-            }
-          }
-          projectHealthByPath.set(healthKey, health);
-          if (report.syntaxOk) {
-            collectTopLevelProjectIds(report.parsed, source.text, project, item, offsets).forEach(record => {
-              const sourceLine = sourceLineDetails(source.text, record.offset);
-              if (!sourceLine.lineText.trim()) return;
-              const context = { jsonPointer: `/${record.entryIndex}/${record.field}`, jsonValue: JSON.stringify(record.id) };
-              if (!duplicateLinesByProject.has(project.id)) duplicateLinesByProject.set(project.id, new Map());
-              const projectLines = duplicateLinesByProject.get(project.id);
-              const key = `${record.namespace}\u0000${sourceLine.lineText}`;
-              if (!projectLines.has(key)) projectLines.set(key, []);
-              projectLines.get(key).push({ ...record, ...sourceLine, ...context });
-            });
-          }
-        } catch (error) {
-          failedCount += 1;
-          issueCount += 1;
-          health.unreadable = true;
-          health.errors += 1;
-          projectHealthByPath.set(healthKey, health);
-          const validationIssue = { severity: 'error', kind: 'standard', project: project.name, relativePath: item.relativePath, line: null, message: error.message || 'Read failed', filePath: item.filePath || '', unreadable: true };
-          reportIssues.push(validationIssue);
-          const result = makeProjectToolResult(projectValidateResults, 'error', `${project.name}/${item.relativePath} · could not read`, error.message || 'Read failed');
-          result.dataset.validationSeverity = 'error';
-          result.dataset.validationKind = 'standard';
-          result.dataset.validationSearch = projectValidationIssueSearchText(validationIssue);
         }
+        nextSnapshots.set(key, snapshot);
+        docs.push({ project, item, key, snapshot, sourceText: snapshot.quickFixSource || '', parsed: null });
         await new Promise(resolve => setTimeout(resolve, 0));
       }
+      if (validationRevision !== projectContentRevision || indexRevision !== projectIndexRevision || docs.length !== files.length) {
+        clearProjectValidationResults();
+        projectValidateStatus.textContent = 'Project contents changed during validation. Run it again to get current results.';
+        return;
+      }
+      projectValidationDocumentSnapshots = nextSnapshots;
+
+      const findings = [];
+      docs.forEach(doc => {
+        doc.snapshot.baseIssues.forEach(descriptor => findings.push(createProjectValidationIssue(doc, descriptor)));
+        if (doc.snapshot.unreadable) findings.push(createProjectValidationIssue(doc, { severity: 'error', confidence: 'definite', kind: 'standard', message: `Could not read file: ${doc.snapshot.unreadable}`, offset: 0, line: 1, highlightLength: 1 }));
+      });
+
+      const definitionsByType = new Map();
+      const definitionEntities = [];
+      const knownTypesById = new Map();
+      const addDefinition = (doc, definition) => {
+        const entity = { ...definition, doc, nodeKey: `${projectHealthKey(doc.project, doc.item)}:${definition.nodeKey}` };
+        definitionEntities.push(entity);
+        if (!definitionsByType.has(entity.type)) definitionsByType.set(entity.type, new Map());
+        const typeMap = definitionsByType.get(entity.type);
+        entity.names.forEach(name => {
+          if (!typeMap.has(name.value)) typeMap.set(name.value, []);
+          const values = typeMap.get(name.value);
+          if (!values.some(value => value.nodeKey === entity.nodeKey)) values.push(entity);
+          if (!knownTypesById.has(name.value)) knownTypesById.set(name.value, new Set());
+          knownTypesById.get(name.value).add(entity.type.toUpperCase());
+        });
+      };
+      docs.forEach(doc => doc.snapshot.definitions.forEach(definition => addDefinition(doc, definition)));
+
+      const offlineDefinitionsByType = new Map(Object.entries(offlineGameDataSnapshot?.definitionsByType || {}).map(([type, records]) => [
+        type.toLowerCase(), new Set((Array.isArray(records) ? records : []).map(record => typeof record === 'string' ? record : record?.id).filter(Boolean))
+      ]));
+
+      projectValidateStatus.textContent = 'Checking project-local references and inheritance cycles…';
+      const missingReferences = new Map();
+      docs.forEach(doc => doc.snapshot.references.forEach(reference => {
+        const candidates = definitionsByType.get(reference.targetType)?.get(reference.value) || [];
+        if (candidates.length || offlineDefinitionsByType.get(reference.targetType)?.has(reference.value)) return;
+        const key = `${reference.targetType}\u0000${reference.value}`;
+        if (!missingReferences.has(key)) missingReferences.set(key, { doc, reference, count: 0, matchingTypes: new Set() });
+        const missing = missingReferences.get(key);
+        missing.count += 1;
+        (knownTypesById.get(reference.value) || []).forEach(type => missing.matchingTypes.add(type));
+      }));
+      missingReferences.forEach(({ doc, reference, count, matchingTypes }) => {
+        const mismatched = matchingTypes.size ? ` The same text exists under ${Array.from(matchingTypes).join(', ')} in open files, but the expected ${reference.targetType.toUpperCase()} definition was not found.` : '';
+        const repeated = count > 1 ? ` This reference appears ${count} times in the open files.` : '';
+        const message = `Reference "${reference.value}" (${reference.field}) was not found among the opened project definitions.${mismatched}${repeated} It may be supplied by CDDA or a project that is not open, so this is not a confirmed game error.`;
+          findings.push(createProjectValidationIssue(doc, { severity: 'warning', confidence: 'needs-game-data', kind: 'reference', message, offset: reference.offset, line: reference.line, highlightLength: JSON.stringify(reference.value).length, jsonPointer: reference.pointer, jsonValue: JSON.stringify(reference.value) }));
+      });
+
+      const inheritanceEdges = new Map();
+      definitionEntities.forEach(entity => {
+        if (!entity.copyFrom) return;
+        const targets = definitionsByType.get(entity.type)?.get(entity.copyFrom) || [];
+        if (targets.length !== 1 || targets[0].nodeKey === entity.nodeKey) return;
+        inheritanceEdges.set(entity.nodeKey, { from: entity, to: targets[0] });
+      });
+      const processedInheritance = new Set();
+      inheritanceEdges.forEach((_edge, startKey) => {
+        if (processedInheritance.has(startKey)) return;
+        const path = [];
+        const localIndexes = new Map();
+        let currentKey = startKey;
+        while (currentKey && inheritanceEdges.has(currentKey) && !processedInheritance.has(currentKey)) {
+          if (localIndexes.has(currentKey)) {
+            const cycle = path.slice(localIndexes.get(currentKey));
+            const labels = cycle.map(node => `${node.type}:${node.identity}`);
+            labels.push(labels[0]);
+            const cycleText = labels.join(' → ');
+            cycle.forEach(node => {
+              const edge = inheritanceEdges.get(node.nodeKey);
+              const message = `Inheritance cycle detected: ${cycleText}.`;
+              findings.push(createProjectValidationIssue(node.doc, { severity: 'error', confidence: 'definite', kind: 'inheritance-cycle', message, offset: node.offset, line: node.line, jsonPointer: node.pointer, jsonValue: JSON.stringify(node.copyFrom) }));
+            });
+            break;
+          }
+          localIndexes.set(currentKey, path.length);
+          path.push(inheritanceEdges.get(currentKey).from);
+          currentKey = inheritanceEdges.get(currentKey).to.nodeKey;
+        }
+        path.forEach(node => processedInheritance.add(node.nodeKey));
+      });
+
+      projectValidateStatus.textContent = 'Checking MOD_INFO IDs and dependencies…';
+      const modIds = new Map();
+      const offlineModIds = new Set((offlineGameDataSnapshot?.definitionsByType?.mod_info || []).map(record => typeof record === 'string' ? record : record?.id).filter(Boolean));
+      const allModInfos = [];
+      docs.forEach(doc => doc.snapshot.modInfos.forEach(modInfo => {
+        allModInfos.push({ doc, ...modInfo });
+        if (!modInfo.id) return;
+        if (!modIds.has(modInfo.id)) modIds.set(modInfo.id, []);
+        modIds.get(modInfo.id).push({ doc, ...modInfo });
+      }));
+      modIds.forEach((records, modId) => {
+        if (records.length < 2) return;
+        records.forEach(record => findings.push(createProjectValidationIssue(record.doc, {
+          severity: 'warning', confidence: 'likely', kind: 'mod-id', message: `MOD_INFO id "${modId}" is duplicated in ${records.length} opened definitions. Duplicate mod IDs can cause ambiguous mod loading.`, offset: record.offset, line: record.line, jsonPointer: record.pointer, jsonValue: JSON.stringify(modId)
+        })));
+      });
+      allModInfos.forEach(modInfo => {
+        const seenDependencies = new Set();
+        modInfo.dependencies.forEach(dependency => {
+          if (modIds.has(dependency.value) || offlineModIds.has(dependency.value) || seenDependencies.has(dependency.value)) return;
+          seenDependencies.add(dependency.value);
+          const message = `MOD_INFO dependency "${dependency.value}" for mod "${modInfo.id || '(unnamed)'}" was not found among opened projects. It may be a base-game or unopened mod dependency; verify it with matching game data.`;
+          findings.push(createProjectValidationIssue(modInfo.doc, { severity: 'warning', confidence: 'needs-game-data', kind: 'mod-dependency', message, offset: dependency.offset, line: dependency.line, jsonPointer: dependency.pointer, jsonValue: JSON.stringify(dependency.value) }));
+        });
+      });
+
       projectValidateStatus.textContent = 'Checking repeated definition-identifier lines…';
+      const duplicateLinesByProject = new Map();
+      docs.forEach(doc => doc.snapshot.duplicates.forEach(record => {
+        if (!duplicateLinesByProject.has(doc.project.id)) duplicateLinesByProject.set(doc.project.id, new Map());
+        const projectLines = duplicateLinesByProject.get(doc.project.id);
+        const key = `${record.namespace}\u0000${record.lineText}`;
+        if (!projectLines.has(key)) projectLines.set(key, []);
+        projectLines.get(key).push({ ...record, project: doc.project, item: doc.item, doc });
+      }));
       duplicateLinesByProject.forEach(projectLines => projectLines.forEach(records => {
         if (records.length < 2) return;
-        const lineText = records[0].lineText;
         records.forEach(record => {
-          const fileKey = `${record.project.id}:${record.item.filePath || record.item.relativePath}`;
-          if (cleanFileKeys.delete(fileKey)) validCount = Math.max(0, validCount - 1);
           const others = records.filter(other => other !== record);
           const otherLocations = others.slice(0, 3).map(other => `${other.item.relativePath} · line ${other.line}`).join(', ');
           const extra = others.length > 3 ? `, and ${others.length - 3} more` : '';
-          issueCount += 1;
-          duplicateLineCount += 1;
-          const healthKey = projectHealthKey(record.project, record.item);
-          const health = projectHealthByPath.get(healthKey) || { errors: 0, warnings: 0, unreadable: false, validated: true };
-          health.warnings += 1;
-          projectHealthByPath.set(healthKey, health);
           const message = `This complete ${record.field} definition line is repeated${otherLocations ? ` at ${otherLocations}${extra}` : ''}.`;
-          const duplicatePointer = `${record.isTopLevelArray ? `/${record.entryIndex}` : ''}/${record.field}`;
-          const validationIssue = { severity: 'warning', kind: 'duplicate', project: record.project.name, relativePath: record.item.relativePath, line: record.line, message, filePath: record.item.filePath || '', offset: record.offset, highlightLength: lineText.length, jsonPointer: duplicatePointer, jsonValue: record.jsonValue, sourceExcerpt: lineText.trim().slice(0, 220) };
-          reportIssues.push(validationIssue);
-          const result = makeProjectToolResult(
-            projectValidateResults,
-            'warning',
-            `${record.project.name}/${record.item.relativePath} · line ${record.line}`,
-            `${message} · JSON Pointer ${duplicatePointer} · JSON value ${record.jsonValue} · Source ${lineText.trim()} · Click to highlight.`,
-            () => openProjectItemAt(record.item, record.line, record.offset, lineText.length)
-          );
-          result.dataset.validationSeverity = 'warning';
-          result.dataset.validationKind = 'duplicate';
-          result.dataset.validationSearch = projectValidationIssueSearchText(validationIssue);
+          findings.push(createProjectValidationIssue(record.doc, { severity: 'warning', confidence: 'likely', kind: 'duplicate', message, offset: record.offset, line: record.line, highlightLength: record.lineText.length, jsonPointer: record.jsonPointer, jsonValue: record.jsonValue, sourceExcerpt: record.lineText.trim().slice(0, 220) }));
         });
       }));
+
+      if (validationRevision !== projectContentRevision || indexRevision !== projectIndexRevision) {
+        clearProjectValidationResults();
+        projectValidateStatus.textContent = 'Project contents changed during validation. Run it again to get current results.';
+        return;
+      }
+      const docsByHealthKey = new Map(docs.map(doc => [projectHealthKey(doc.project, doc.item), doc]));
+      const issueDoc = issue => docsByHealthKey.get(`${issue.projectId}:${String(issue.filePath || issue.relativePath).toLowerCase()}`);
+      const baselineCounts = new Map();
+      comparisonBaseline.forEach(issue => {
+        const signature = projectValidationIssueSignature(issue);
+        baselineCounts.set(signature, (baselineCounts.get(signature) || 0) + 1);
+      });
+      findings.forEach(issue => {
+        if (!hadPreviousRun) return;
+        const signature = projectValidationIssueSignature(issue);
+        const remaining = baselineCounts.get(signature) || 0;
+        issue.comparisonStatus = remaining > 0 ? 'unchanged' : 'new';
+        if (remaining > 0) baselineCounts.set(signature, remaining - 1);
+      });
+      const fixedFindings = [];
+      if (hadPreviousRun) comparisonBaseline.forEach(issue => {
+        const signature = projectValidationIssueSignature(issue);
+        const remaining = baselineCounts.get(signature) || 0;
+        if (remaining > 0) {
+          fixedFindings.push({ ...issue, comparisonStatus: 'fixed' });
+          baselineCounts.set(signature, remaining - 1);
+        }
+      });
+      projectValidationIssues = findings;
+      projectValidationPreviousIssues = comparisonBaseline;
+      projectValidationHasPreviousRun = hadPreviousRun;
+      projectValidationDisplayIssues = [...findings, ...fixedFindings];
+      projectValidationFileCount = files.length;
+      projectValidationHasRun = true;
+      projectValidationHasPreviousRun = hadPreviousRun;
+      projectValidationStale = false;
+      for (let index = 0; index < projectValidationDisplayIssues.length; index += 1) {
+        if (validationRevision !== projectContentRevision || indexRevision !== projectIndexRevision) {
+          clearProjectValidationResults();
+          projectValidateStatus.textContent = 'Project contents changed during validation. Run it again to get current results.';
+          return;
+        }
+        if (index > 0 && index % 250 === 0) {
+          projectValidateStatus.textContent = `Building validation report ${index + 1}/${projectValidationDisplayIssues.length}…`;
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+      }
+      renderProjectValidationDisplay();
+      projectHealthByPath = new Map();
+      docs.forEach(doc => projectHealthByPath.set(projectHealthKey(doc.project, doc.item), { errors: 0, warnings: 0, unreadable: Boolean(doc.snapshot.unreadable), validated: true }));
+      const filesWithFindings = new Set();
+      findings.forEach(issue => {
+        const doc = issueDoc(issue);
+        if (!doc) return;
+        const healthKey = projectHealthKey(doc.project, doc.item);
+        if (!projectHealthByPath.has(healthKey)) projectHealthByPath.set(healthKey, { errors: 0, warnings: 0, unreadable: false, validated: true });
+        const health = projectHealthByPath.get(healthKey);
+        if (issue.severity === 'error') health.errors += 1;
+        else health.warnings += 1;
+        if (issue.kind === 'standard' && issue.message.startsWith('Could not read file:')) health.unreadable = true;
+        filesWithFindings.add(healthKey);
+      });
+      const validCount = Math.max(0, files.length - filesWithFindings.size);
+      const duplicateLineCount = findings.filter(issue => issue.kind === 'duplicate').length;
+      const emptyFileCount = findings.filter(issue => issue.kind === 'empty').length;
+      const failedCount = docs.filter(doc => doc.snapshot.unreadable).length;
+      const errorCount = findings.filter(issue => issue.severity === 'error').length;
+      const warningCount = findings.length - errorCount;
+      const runSummary = changedOnly ? `${changedFileCount} changed rechecked · ${reusedFileCount} unchanged reused · ` : '';
+      const compareSummary = hadPreviousRun ? ` · ${findings.filter(issue => issue.comparisonStatus === 'new').length} new · ${fixedFindings.length} fixed · ${findings.filter(issue => issue.comparisonStatus === 'unchanged').length} unchanged` : '';
+      projectValidateStatus.textContent = `${runSummary}${files.length} JSON indexed · ${validCount} clean · ${errorCount} error${errorCount === 1 ? '' : 's'} · ${warningCount} warning${warningCount === 1 ? '' : 's'}${compareSummary}${offlineGameDataSnapshot ? ` · offline data ${Number(offlineGameDataSnapshot.definitionCount || 0).toLocaleString()} IDs` : ''}${duplicateLineCount ? ` · ${duplicateLineCount} duplicate-line location${duplicateLineCount === 1 ? '' : 's'}` : ''}${emptyFileCount ? ` · ${emptyFileCount} empty file/array${emptyFileCount === 1 ? '' : 's'}` : ''}${failedCount ? ` · ${failedCount} unreadable` : ''}`;
+      projectValidationSearchInput.disabled = false;
+      projectValidationCompareFilter.disabled = !hadPreviousRun;
+      projectValidationSeverityFilter.disabled = false;
+      projectValidationConfidenceFilter.disabled = false;
+      projectValidationShowDuplicates.disabled = false;
+      projectValidationShowEmptyFiles.disabled = false;
+      copyProjectReportBtn.disabled = false;
+      exportProjectReportBtn.disabled = false;
+      exportFilteredProjectReportBtn.disabled = false;
+      clearProjectValidationBtn.disabled = false;
+      runChangedProjectValidationBtn.disabled = false;
+      projectValidationShowDismissed.disabled = false;
+      applyProjectValidationFilters();
+      renderProjects();
     } finally {
-      button.disabled = false;
+      fullButton.disabled = false;
+      runChangedProjectValidationBtn.disabled = !projectValidationHasRun;
     }
-    if (validationRevision !== projectContentRevision) {
-      clearProjectValidationResults();
-      projectValidateStatus.textContent = 'Project contents changed during validation. Run it again to get current results.';
-      return;
-    }
-    if (!issueCount) projectValidateResults.innerHTML = `<div class="help">No issues found in ${validCount} JSON file${validCount === 1 ? '' : 's'}.</div>`;
-    projectValidateStatus.textContent = `${files.length} JSON checked · ${validCount} clean · ${issueCount} issue${issueCount === 1 ? '' : 's'}${duplicateLineCount ? ` · ${duplicateLineCount} duplicate-line location${duplicateLineCount === 1 ? '' : 's'}` : ''}${emptyFileCount ? ` · ${emptyFileCount} empty file/array${emptyFileCount === 1 ? '' : 's'}` : ''}${failedCount ? ` · ${failedCount} unreadable` : ''}`;
-    projectValidationIssues = reportIssues;
-    projectValidationHasRun = true;
-    projectValidationSearchInput.disabled = false;
-    projectValidationSeverityFilter.disabled = false;
-    projectValidationShowDuplicates.disabled = false;
-    projectValidationShowEmptyFiles.disabled = false;
-    copyProjectReportBtn.disabled = false;
-    exportProjectReportBtn.disabled = false;
-    exportFilteredProjectReportBtn.disabled = false;
-    clearProjectValidationBtn.disabled = false;
-    applyProjectValidationFilters();
-    renderProjects();
   }
 
   function applyProjectValidationFilters(){
     const results = Array.from(projectValidateResults.querySelectorAll('.project-tool-result[data-validation-severity]'));
     const query = projectValidationSearchInput.value.trim().toLowerCase();
+    const comparison = projectValidationCompareFilter.value;
     const severity = projectValidationSeverityFilter.value;
+    const confidence = projectValidationConfidenceFilter.value;
     const showDuplicates = projectValidationShowDuplicates.checked;
     const showEmptyFiles = projectValidationShowEmptyFiles.checked;
+    const showDismissed = projectValidationShowDismissed.checked;
     let visibleCount = 0;
     results.forEach(result => {
       const kind = result.dataset.validationKind || 'standard';
       const visible = (severity === 'all' || result.dataset.validationSeverity === severity) &&
+        (confidence === 'all' || result.dataset.validationConfidence === confidence) &&
+        (comparison === 'all' || result.dataset.validationComparison === comparison) &&
+        (showDismissed || result.dataset.validationDismissed !== 'true') &&
         (!(kind === 'duplicate' || kind === 'duplicate-property') || showDuplicates) &&
         (kind !== 'empty' || showEmptyFiles) &&
         (!query || result.dataset.validationSearch.includes(query));
@@ -6477,8 +7221,8 @@
     }
     emptyMessage.style.display = results.length && !visibleCount ? '' : 'none';
     if (!projectValidationHasRun) projectValidationFilterStatus.textContent = 'Run validation to filter findings.';
-    else if (!results.length) projectValidationFilterStatus.textContent = `No findings to filter.${projectValidationStale ? ' · stale; rerun validation to refresh' : ''}`;
-    else projectValidationFilterStatus.textContent = `Showing ${visibleCount} of ${results.length} finding${results.length === 1 ? '' : 's'} · duplicates ${showDuplicates ? 'on' : 'off'} · empty files ${showEmptyFiles ? 'on' : 'off'}${projectValidationStale ? ' · stale; rerun validation to refresh' : ''}`;
+    else if (!results.length) projectValidationFilterStatus.textContent = `No findings to filter.${projectValidationStale ? ' · stale; recheck changed files or run full validation' : ''}`;
+    else projectValidationFilterStatus.textContent = `Showing ${visibleCount} of ${results.length} findings · ${comparison === 'all' ? 'all run changes' : comparison} · profile ${confidence === 'all' ? 'all' : projectValidationProfileLabel(confidence).toLowerCase()} · dismissed ${showDismissed ? 'shown' : 'hidden'} · duplicates ${showDuplicates ? 'on' : 'off'} · empty files ${showEmptyFiles ? 'on' : 'off'}${projectValidationStale ? ' · stale; recheck changed files or run full validation' : ''}`;
   }
 
   function projectValidationIssueSearchText(issue){
@@ -6487,17 +7231,23 @@
     if (issue.jsonPointer !== null && issue.jsonPointer !== undefined) details.push(`JSON Pointer ${issue.jsonPointer || '(root)'}`);
     if (issue.jsonValue) details.push(`JSON value ${issue.jsonValue}`);
     if (issue.sourceExcerpt) details.push(`Source ${issue.sourceExcerpt}`);
-    return `${issue.project || ''}/${issue.relativePath || ''} ${issue.line ? `line ${issue.line}` : ''} ${issue.message || ''} ${details.join(' ')}`.toLowerCase();
+    return `${issue.project || ''}/${issue.relativePath || ''} ${issue.line ? `line ${issue.line}` : ''} ${issue.confidence || ''} ${issue.kind || ''} ${issue.message || ''} ${details.join(' ')}`.toLowerCase();
   }
 
   function projectValidationIssueMatchesFilters(issue){
     const severity = projectValidationSeverityFilter.value;
+    const confidence = projectValidationConfidenceFilter.value;
     const showDuplicates = projectValidationShowDuplicates.checked;
     const showEmptyFiles = projectValidationShowEmptyFiles.checked;
+    const showDismissed = projectValidationShowDismissed.checked;
+    const comparison = projectValidationCompareFilter.value;
     const query = projectValidationSearchInput.value.trim().toLowerCase();
     const kind = issue.kind || 'standard';
     const searchable = projectValidationIssueSearchText(issue);
     return (severity === 'all' || issue.severity === severity) &&
+      (confidence === 'all' || issue.confidence === confidence) &&
+      (comparison === 'all' || issue.comparisonStatus === comparison) &&
+      (showDismissed || !getProjectIssueDismissal(issue)) &&
       (!(kind === 'duplicate' || kind === 'duplicate-property') || showDuplicates) &&
       (kind !== 'empty' || showEmptyFiles) &&
       (!query || searchable.includes(query));
@@ -6505,18 +7255,29 @@
 
   function clearProjectValidationResults(){
     projectValidationIssues = [];
+    projectValidationPreviousIssues = [];
+    projectValidationDisplayIssues = [];
+    projectValidationHasPreviousRun = false;
     projectValidationFileCount = 0;
     projectValidationHasRun = false;
     projectValidationStale = false;
     projectHealthByPath = new Map();
     projectValidationSearchInput.value = '';
     projectValidationSeverityFilter.value = 'all';
+    projectValidationConfidenceFilter.value = 'all';
     projectValidationSearchInput.disabled = true;
+    projectValidationCompareFilter.value = 'all';
+    projectValidationCompareFilter.disabled = true;
     projectValidationSeverityFilter.disabled = true;
+    projectValidationConfidenceFilter.disabled = true;
+    projectValidationDocumentSnapshots = new Map();
     projectValidationShowDuplicates.checked = true;
     projectValidationShowEmptyFiles.checked = true;
+    projectValidationShowDismissed.checked = false;
     projectValidationShowDuplicates.disabled = true;
     projectValidationShowEmptyFiles.disabled = true;
+    projectValidationShowDismissed.disabled = true;
+    runChangedProjectValidationBtn.disabled = true;
     projectValidationFilterStatus.textContent = 'Run validation to filter findings.';
     projectValidateResults.innerHTML = '<div class="help">Validation results cleared. Run validation again to refresh the project report.</div>';
     projectValidateStatus.textContent = 'Validation results cleared';
@@ -6539,20 +7300,26 @@
 
   function validationIssueContextLines(issue){
     const details = [];
+    if (issue.comparisonStatus) details.push(`Run comparison: ${issue.comparisonStatus}`);
     if (issue.jsonPointer !== null && issue.jsonPointer !== undefined) details.push(`JSON Pointer: ${issue.jsonPointer || '(root)'}`);
     if (issue.jsonValue) details.push(`JSON value: ${issue.jsonValue}`);
     if (issue.sourceExcerpt) details.push(`Source: ${issue.sourceExcerpt}`);
+    const dismissal = getProjectIssueDismissal(issue);
+    if (dismissal) details.push(`Dismissed for this project: ${dismissal.reason}`);
     return details;
   }
 
-  function projectValidationReportText(issues = projectValidationIssues, filtered = false){
+  function projectValidationReportText(issues = projectValidationDisplayIssues, filtered = false){
     const errors = issues.filter(issue => issue.severity === 'error').length;
     const warnings = issues.filter(issue => issue.severity === 'warning').length;
-    const lines = [`CDDA JSON project validation${filtered ? ' · filtered view' : ''}`, `${projectValidationFileCount} JSON files checked · ${errors} errors · ${warnings} warnings · ${issues.length} findings${projectValidationStale ? ' · results are stale; rerun validation' : ''}`, ''];
+    const definite = issues.filter(issue => issue.confidence === 'definite').length;
+    const likely = issues.filter(issue => issue.confidence === 'likely').length;
+    const needsData = issues.filter(issue => issue.confidence === 'needs-game-data').length;
+    const lines = [`CDDA JSON project validation${filtered ? ' · filtered view' : ''}`, `${projectValidationFileCount} JSON files indexed · ${errors} errors · ${warnings} warnings · ${issues.length} findings · ${definite} definite · ${likely} likely · ${needsData} need game data${projectValidationStale ? ' · results are stale; recheck changed files or run full validation' : ''}`, ''];
     groupedProjectValidationIssues(issues).forEach(([file, fileIssues]) => {
       lines.push(file);
       fileIssues.forEach(issue => {
-        lines.push(`  [${issue.severity.toUpperCase()}]${issue.line ? ` line ${issue.line}` : ''} ${issue.message}`);
+        lines.push(`  [${issue.comparisonStatus ? `${issue.comparisonStatus.toUpperCase()} · ` : ''}${issue.severity.toUpperCase()} · ${projectValidationProfileLabel(issue.confidence)}${issue.kind && issue.kind !== 'standard' ? ` · ${issue.kind}` : ''}]${issue.line ? ` line ${issue.line}` : ''} ${issue.message}`);
         validationIssueContextLines(issue).forEach(detail => lines.push(`    ${detail}`));
       });
       lines.push('');
@@ -6582,25 +7349,28 @@
   }
 
   function exportProjectValidationReport(){
-    downloadProjectValidationReport(projectValidationIssues, false);
+    downloadProjectValidationReport(projectValidationDisplayIssues, false);
   }
 
   function exportFilteredProjectValidationReport(){
-    downloadProjectValidationReport(projectValidationIssues.filter(projectValidationIssueMatchesFilters), true);
+    downloadProjectValidationReport(projectValidationDisplayIssues.filter(projectValidationIssueMatchesFilters), true);
   }
 
   function downloadProjectValidationReport(issues, filtered){
     if (!projectValidationHasRun) return;
     const errors = issues.filter(issue => issue.severity === 'error').length;
     const warnings = issues.filter(issue => issue.severity === 'warning').length;
+    const definite = issues.filter(issue => issue.confidence === 'definite').length;
+    const likely = issues.filter(issue => issue.confidence === 'likely').length;
+    const needsData = issues.filter(issue => issue.confidence === 'needs-game-data').length;
     const groups = groupedProjectValidationIssues(issues).map(([file, fileIssues]) => `<section><h2>${escapeHtml(file)}</h2><ul>${fileIssues.map(issue => {
       const context = validationIssueContextLines(issue).map(line => `<code>${escapeHtml(line)}</code>`).join('<br>');
       const kind = issue.kind && issue.kind !== 'standard' ? ` · ${escapeHtml(issue.kind)}` : '';
-      return `<li class="${issue.severity}"><strong>${issue.severity.toUpperCase()}${issue.line ? ` · line ${issue.line}` : ''}${kind}</strong><br>${escapeHtml(issue.message)}${context ? `<br>${context}` : ''}</li>`;
+      return `<li class="${issue.severity}"><strong>${issue.comparisonStatus ? `${escapeHtml(issue.comparisonStatus.toUpperCase())} · ` : ''}${issue.severity.toUpperCase()} · ${escapeHtml(projectValidationProfileLabel(issue.confidence))}${issue.line ? ` · line ${issue.line}` : ''}${kind}</strong><br>${escapeHtml(issue.message)}${context ? `<br>${context}` : ''}</li>`;
     }).join('')}</ul></section>`).join('');
-    const stale = projectValidationStale ? '<br><strong>These findings may be out of date; rerun validation to refresh them.</strong>' : '';
+    const stale = projectValidationStale ? '<br><strong>These findings may be out of date; recheck changed files or run full validation to refresh them.</strong>' : '';
     const viewLabel = filtered ? 'Filtered view' : 'All findings';
-    const documentText = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>CDDA project validation · ${viewLabel}</title><style>body{font:15px/1.55 system-ui,sans-serif;max-width:1100px;margin:32px auto;padding:0 18px;background:#0b1220;color:#e2e8f0}h1{font-size:25px}h2{font-size:17px;margin:0 0 8px;overflow-wrap:anywhere}header{color:#94a3b8;margin-bottom:24px}section{border:1px solid #334155;border-radius:10px;padding:14px 18px;margin:12px 0}ul{margin:0;padding-left:20px}li{padding:5px 0;overflow-wrap:anywhere}.error{color:#fecaca}.warning{color:#fde68a}strong{font-size:12px;letter-spacing:.04em}code{display:inline-block;margin-top:3px;color:#cbd5e1;white-space:pre-wrap;overflow-wrap:anywhere}footer{color:#94a3b8;margin-top:22px;font-size:12px}</style><h1>CDDA JSON project validation · ${viewLabel}</h1><header>${projectValidationFileCount} JSON files checked · ${errors} errors · ${warnings} warnings · ${issues.length} findings${stale}<br>Generated ${new Date().toLocaleString()}</header>${groups || '<p>No findings match the selected filters.</p>'}<footer>Generated by CDDA JSON Editor Desktop</footer></html>`;
+    const documentText = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>CDDA project validation · ${viewLabel}</title><style>body{font:15px/1.55 system-ui,sans-serif;max-width:1100px;margin:32px auto;padding:0 18px;background:#0b1220;color:#e2e8f0}h1{font-size:25px}h2{font-size:17px;margin:0 0 8px;overflow-wrap:anywhere}header{color:#94a3b8;margin-bottom:24px}section{border:1px solid #334155;border-radius:10px;padding:14px 18px;margin:12px 0}ul{margin:0;padding-left:20px}li{padding:5px 0;overflow-wrap:anywhere}.error{color:#fecaca}.warning{color:#fde68a}strong{font-size:12px;letter-spacing:.04em}code{display:inline-block;margin-top:3px;color:#cbd5e1;white-space:pre-wrap;overflow-wrap:anywhere}footer{color:#94a3b8;margin-top:22px;font-size:12px}</style><h1>CDDA JSON project validation · ${viewLabel}</h1><header>${projectValidationFileCount} JSON files indexed · ${errors} errors · ${warnings} warnings · ${issues.length} findings · ${definite} definite · ${likely} likely · ${needsData} need game data${stale}<br>Generated ${new Date().toLocaleString()}</header>${groups || '<p>No findings match the selected filters.</p>'}<footer>Generated by CDDA JSON Editor Desktop</footer></html>`;
     const blob = new Blob([documentText], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -6782,6 +7552,7 @@
     const revision = projectIndexRevision;
     projectIdIndexPromise = (async () => {
       const index = new Map();
+      const definitions = new Map();
       const addId = (value, type) => {
         const ids = Array.isArray(value) ? value : [value];
         ids.forEach(id => {
@@ -6799,13 +7570,33 @@
         Object.values(value).forEach(child => { if (child && typeof child === 'object') scanValue(child, type); });
       };
       const files = allProjectFiles(isJSONProjectFile);
-      for (const { item } of files) {
-        try { scanValue(JSON.parse((await readProjectFile(item)).text)); } catch (error) {}
+      for (const { project, item } of files) {
+        try {
+          const source = await readProjectFile(item);
+          const parsed = JSON.parse(source.text);
+          scanValue(parsed);
+          collectTopLevelProjectIds(parsed, source.text, project, item, topLevelValueOffsets(source.text)).forEach(record => {
+            if (!definitions.has(record.id)) definitions.set(record.id, []);
+            const locations = definitions.get(record.id);
+            if (locations.length < 8 && !locations.some(entry => entry.item.filePath === item.filePath && entry.offset === record.offset)) locations.push(record);
+          });
+        } catch (error) {}
         await new Promise(resolve => setTimeout(resolve, 0));
       }
       tabs.forEach(tab => { if (tab.text && tab.text.length < MAX_SEARCH_HIGHLIGHT_CHARS) { try { scanValue(JSON.parse(tab.text)); } catch (error) {} } });
+      Object.entries(offlineGameDataSnapshot?.definitionsByType || {}).forEach(([type, records]) => (Array.isArray(records) ? records : []).forEach(record => {
+        const id = typeof record === 'string' ? record : record?.id;
+        if (typeof id !== 'string' || !id) return;
+        addId(id, type);
+        if (!definitions.has(id)) definitions.set(id, []);
+        const locations = definitions.get(id);
+        if (locations.length < 8 && !locations.some(entry => entry.offline && entry.file === record?.file && entry.type === type)) {
+          locations.push({ id, type, offline: true, file: record?.file || '', preview: record?.preview || '' });
+        }
+      }));
       if (revision === projectIndexRevision) {
         projectIdIndex = index;
+        projectDefinitionIndex = definitions;
         indexedProjectIdRevision = revision;
       }
       return index;
@@ -6822,6 +7613,76 @@
     const before = editor.value.slice(0, start).match(/[A-Za-z0-9_.:-]*$/)?.[0] || '';
     const after = editor.value.slice(end).match(/^[A-Za-z0-9_.:-]*/)?.[0] || '';
     return `${before}${after}`;
+  }
+
+  function getEditorStringValueAtCaret(){
+    if (editor.selectionStart !== editor.selectionEnd) return editor.value.slice(editor.selectionStart, editor.selectionEnd).trim().replace(/^"|"$/g, '');
+    const text = editor.value;
+    const caret = editor.selectionStart;
+    const lineStart = text.lastIndexOf('\n', Math.max(0, caret - 1)) + 1;
+    const newline = text.indexOf('\n', caret);
+    const lineEnd = newline < 0 ? text.length : newline;
+    let start = -1;
+    let escaped = false;
+    for (let cursor = lineStart; cursor < lineEnd; cursor += 1) {
+      if (escaped) escaped = false;
+      else if (text[cursor] === '\\' && start >= 0) escaped = true;
+      else if (text[cursor] === '"') {
+        if (start < 0) start = cursor;
+        else {
+          const end = cursor;
+          if (caret >= start + 1 && caret <= end) {
+            let after = end + 1;
+            while (/\s/.test(text[after] || '')) after += 1;
+            if (text[after] === ':') return '';
+            try { return JSON.parse(text.slice(start, end + 1)); } catch (error) { return ''; }
+          }
+          start = -1;
+          escaped = false;
+        }
+      }
+    }
+    return '';
+  }
+
+  async function previewCurrentIdDefinition(){
+    const id = getEditorStringValueAtCaret() || getCurrentIdToken();
+    if (!id) { idDefinitionPreview.classList.add('hidden'); return; }
+    const revision = projectIndexRevision;
+    await ensureProjectIdIndex();
+    if (revision !== projectIndexRevision) return;
+    const records = projectDefinitionIndex.get(id) || [];
+    if (!records.length) { idDefinitionPreview.classList.add('hidden'); return; }
+    idDefinitionPreview.innerHTML = '';
+    const head = document.createElement('div');
+    head.className = 'id-definition-preview-head';
+    head.textContent = `Definition preview · ${id}`;
+    idDefinitionPreview.appendChild(head);
+    records.slice(0, 6).forEach(record => {
+      const location = record.offline
+        ? `Offline snapshot · ${record.file || 'game JSON data'} (read-only index)`
+        : `${record.project.name}/${record.item.relativePath} · line ${record.line}`;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'id-definition-preview-item';
+      const type = (record.type || record.namespace || 'definition').toUpperCase();
+      button.textContent = `${type} · ${record.id}`;
+      const detail = document.createElement('small');
+      detail.textContent = `${location}${record.preview ? ` · ${record.preview}` : ''}${record.offline ? '' : ' · click to jump'}`;
+      button.appendChild(detail);
+      if (record.offline) button.disabled = true;
+      else button.addEventListener('click', async () => {
+        idDefinitionPreview.classList.add('hidden');
+        await openProjectItemAt(record.item, record.line, record.offset, JSON.stringify(record.id).length);
+      });
+      idDefinitionPreview.appendChild(button);
+    });
+    if (records.length > 6) {
+      const extra = document.createElement('small');
+      extra.textContent = `Showing 6 of ${records.length} matching definitions.`;
+      idDefinitionPreview.appendChild(extra);
+    }
+    idDefinitionPreview.classList.remove('hidden');
   }
 
   function findStringValueOffsets(text, target){
@@ -7090,6 +7951,129 @@
     }
     if (!references) projectReferencesResults.innerHTML = '<div class="help">No exact JSON string-value references found.</div>';
     projectReferencesStatus.textContent = `${references} exact reference${references === 1 ? '' : 's'}${unreadable ? ` · ${unreadable} unreadable files` : ''}`;
+  }
+
+  async function runProjectDependencyGraph(){
+    const files = allProjectFiles(isJSONProjectFile);
+    const button = document.getElementById('runDependencyGraphBtn');
+    projectDependenciesResults.innerHTML = '';
+    if (!files.length) {
+      projectDependenciesResults.innerHTML = '<div class="help">Open one or more mod folders before building a dependency graph.</div>';
+      projectDependenciesStatus.textContent = 'No JSON files in opened projects.';
+      return;
+    }
+    button.disabled = true;
+    const mods = [];
+    let skipped = 0;
+    try {
+      for (let index = 0; index < files.length; index += 1) {
+        const { project, item } = files[index];
+        projectDependenciesStatus.textContent = `Reading MOD_INFO ${index + 1}/${files.length}: ${item.relativePath}`;
+        try {
+          const source = await readProjectFile(item);
+          const parsed = JSON.parse(source.text);
+          const entries = Array.isArray(parsed) ? parsed : [parsed];
+          const offsets = topLevelValueOffsets(source.text);
+          entries.forEach((entry, entryIndex) => {
+            if (!entry || typeof entry !== 'object' || Array.isArray(entry) || String(entry.type || '').toUpperCase() !== 'MOD_INFO') return;
+            const start = Array.isArray(parsed) ? (offsets[entryIndex] ?? 0) : 0;
+            const end = Array.isArray(parsed) ? (offsets[entryIndex + 1] ?? source.text.length) : source.text.length;
+            const id = typeof entry.id === 'string' ? entry.id.trim() : '';
+            const idOffset = id ? (findTopLevelStringPropertyOffset(source.text, start, end, 'id', entry.id) ?? start) : start;
+            const depOffsets = findTopLevelStringArrayOffsets(source.text, start, end, 'dependencies');
+            const dependencies = (Array.isArray(entry.dependencies) ? entry.dependencies : []).filter(dep => typeof dep === 'string' && dep.trim()).map((dep, depIndex) => ({
+              id: dep,
+              offset: depOffsets[depIndex]?.offset ?? start,
+              line: lineAtOffset(source.text, depOffsets[depIndex]?.offset ?? start)
+            }));
+            mods.push({ id: id || `${project.name}: ${item.relativePath} (unnamed)`, name: typeof entry.name === 'string' ? entry.name : '', project, item, line: lineAtOffset(source.text, idOffset), offset: idOffset, dependencies });
+          });
+        } catch (error) { skipped += 1; }
+        if (index % 60 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+      }
+    } finally { button.disabled = false; }
+
+    const byId = new Map();
+    mods.forEach(mod => {
+      if (!byId.has(mod.id)) byId.set(mod.id, []);
+      byId.get(mod.id).push(mod);
+    });
+    const edges = new Map();
+    mods.forEach(mod => edges.set(mod.id, Array.from(new Set(mod.dependencies.filter(dep => byId.has(dep.id)).map(dep => dep.id)))));
+    const visitState = new Map();
+    const activePath = [];
+    const cycleIds = new Set();
+    const cycleLists = new Set();
+    const visit = id => {
+      const state = visitState.get(id) || 0;
+      if (state === 2) return;
+      if (state === 1) {
+        const start = activePath.indexOf(id);
+        if (start >= 0) {
+          const cycle = activePath.slice(start);
+          cycle.forEach(member => cycleIds.add(member));
+          cycleLists.add([...cycle, id].join(' → '));
+        }
+        return;
+      }
+      visitState.set(id, 1);
+      activePath.push(id);
+      (edges.get(id) || []).forEach(visit);
+      activePath.pop();
+      visitState.set(id, 2);
+    };
+    byId.forEach((_records, id) => visit(id));
+
+    const edgeCount = mods.reduce((sum, mod) => sum + mod.dependencies.length, 0);
+    const missingCount = mods.reduce((sum, mod) => sum + mod.dependencies.filter(dep => !byId.has(dep.id)).length, 0);
+    mods.forEach(mod => {
+      const row = document.createElement('div');
+      row.className = `dependency-node${cycleIds.has(mod.id) ? ' cycle' : ''}`;
+      const sourceButton = document.createElement('button');
+      sourceButton.type = 'button';
+      sourceButton.className = 'id-definition-preview-item dependency-mod';
+      sourceButton.textContent = `${mod.id}${byId.get(mod.id).length > 1 ? ` · duplicate ID (${byId.get(mod.id).length})` : ''}`;
+      sourceButton.title = `${mod.project.name}/${mod.item.relativePath} · line ${mod.line}`;
+      sourceButton.addEventListener('click', () => openProjectItemAt(mod.item, mod.line, mod.offset));
+      const arrow = document.createElement('span');
+      arrow.className = 'dependency-arrow';
+      arrow.textContent = 'depends on →';
+      const targets = document.createElement('div');
+      targets.className = 'dependency-targets';
+      if (!mod.dependencies.length) {
+        const none = document.createElement('span');
+        none.className = 'dependency-chip';
+        none.textContent = 'No declared dependencies';
+        targets.appendChild(none);
+      }
+      mod.dependencies.forEach(dependency => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        const missing = !byId.has(dependency.id);
+        const cyclic = cycleIds.has(mod.id) && cycleIds.has(dependency.id);
+        chip.className = `dependency-chip${missing ? ' missing' : (cyclic ? ' cyclic' : '')}`;
+        chip.textContent = `${missing ? 'Missing / unopened · ' : ''}${dependency.id}`;
+        if (!missing) {
+          const target = byId.get(dependency.id)[0];
+          chip.title = `${target.project.name}/${target.item.relativePath} · line ${target.line}`;
+          chip.addEventListener('click', () => openProjectItemAt(target.item, target.line, target.offset));
+        } else {
+          chip.title = `Dependency is not among opened MOD_INFO files: ${dependency.id}`;
+          chip.addEventListener('click', () => openProjectItemAt(mod.item, dependency.line, dependency.offset));
+        }
+        targets.appendChild(chip);
+      });
+      row.append(sourceButton, arrow, targets);
+      projectDependenciesResults.appendChild(row);
+    });
+    cycleLists.forEach(cycle => {
+      const warning = document.createElement('div');
+      warning.className = 'help';
+      warning.textContent = `Dependency cycle: ${cycle}`;
+      projectDependenciesResults.prepend(warning);
+    });
+    if (!mods.length) projectDependenciesResults.innerHTML = '<div class="help">No MOD_INFO definitions were found in opened JSON files.</div>';
+    projectDependenciesStatus.textContent = `${mods.length} MOD_INFO definitions · ${edgeCount} dependency links · ${missingCount} missing/unopened targets · ${cycleLists.size} cycle${cycleLists.size === 1 ? '' : 's'}${skipped ? ` · ${skipped} invalid/unreadable files skipped` : ''}. Cycle checks cover opened projects only.`;
   }
 
   async function showCurrentIdReferences(){
@@ -7525,10 +8509,16 @@
     }
   });
   document.getElementById('runProjectValidationBtn').addEventListener('click', runWholeProjectValidation);
+  runChangedProjectValidationBtn.addEventListener('click', () => runWholeProjectValidation({ changedOnly: true }));
   projectValidationSearchInput.addEventListener('input', applyProjectValidationFilters);
+  projectValidationCompareFilter.addEventListener('change', applyProjectValidationFilters);
   projectValidationSeverityFilter.addEventListener('change', applyProjectValidationFilters);
+  projectValidationConfidenceFilter.addEventListener('change', applyProjectValidationFilters);
   projectValidationShowDuplicates.addEventListener('change', applyProjectValidationFilters);
   projectValidationShowEmptyFiles.addEventListener('change', applyProjectValidationFilters);
+  projectValidationShowDismissed.addEventListener('change', applyProjectValidationFilters);
+  importOfflineSnapshotBtn.addEventListener('click', importOfflineSnapshot);
+  removeOfflineSnapshotBtn.addEventListener('click', removeOfflineSnapshot);
   copyProjectReportBtn.addEventListener('click', copyProjectValidationReport);
   exportProjectReportBtn.addEventListener('click', exportProjectValidationReport);
   exportFilteredProjectReportBtn.addEventListener('click', exportFilteredProjectValidationReport);
@@ -7551,8 +8541,15 @@
   projectReplaceInput.addEventListener('input', () => { replaceProjectMatchesBtn.disabled = !projectSearchMatches.length || !window.cddaDesktop?.writeProjectFile; });
   replaceProjectMatchesBtn.addEventListener('click', replaceProjectMatches);
   document.getElementById('runProjectReferencesBtn').addEventListener('click', runProjectReferences);
+  document.getElementById('runDependencyGraphBtn').addEventListener('click', runProjectDependencyGraph);
   projectReferenceInput.addEventListener('keydown', event => { if (event.key === 'Enter') runProjectReferences(); });
   document.getElementById('findReferencesBtn').addEventListener('click', showCurrentIdReferences);
+  document.getElementById('peekIdDefinitionBtn').addEventListener('click', previewCurrentIdDefinition);
+  editor.addEventListener('click', () => setTimeout(previewCurrentIdDefinition, 130));
+  editor.addEventListener('dblclick', () => setTimeout(previewCurrentIdDefinition, 80));
+  editor.addEventListener('keyup', event => {
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) setTimeout(previewCurrentIdDefinition, 100);
+  });
   copyJsonPathBtn.addEventListener('click', copyJsonPointer);
   snippetSelect.addEventListener('change', insertSelectedSnippet);
   manageSnippetsBtn.addEventListener('click', openSnippetManager);
@@ -7805,6 +8802,10 @@
   });
 
   loadSettings();
+  loadOfflineSnapshot();
+  window.cddaDesktop?.onOfflineSnapshotProgress?.(progress => {
+    offlineSnapshotStatus.textContent = `Indexing offline data… ${Number(progress?.scanned || 0).toLocaleString()} JSON files scanned · ${Number(progress?.parsed || 0).toLocaleString()} parsed · ${Number(progress?.skipped || 0).toLocaleString()} skipped.`;
+  });
   loadRecentFiles();
   loadCustomSnippets();
   renderCustomSnippetOptions();

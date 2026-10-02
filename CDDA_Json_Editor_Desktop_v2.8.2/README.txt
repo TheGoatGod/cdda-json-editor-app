@@ -27,12 +27,34 @@ minimize it, or the left/right arrows in its header to dock it on either side.
 
 Project tools
 
-- Validate every project JSON file for syntax, common CDDA structure issues,
-  and exact repeated definition-identifier lines (`id`, `abstract`, or
-  `ident`). Click a located finding to open the file and highlight its source.
-- Filter findings by severity, duplicates, empty files, or text from the file,
-  line, message, and JSON context. Findings include a JSON Pointer, value, and
-  source-line excerpt.
+- Compare consecutive project-validation runs and filter findings as new, fixed,
+  or unchanged. A first run becomes the baseline; the next run reports the diff.
+- Build a visual MOD_INFO dependency overview, including missing/unopened
+  dependencies and cycles among the opened mods.
+- Click an ID value in the editor to preview its local definition and jump to
+  that file and line. Offline snapshot IDs are also included in autocomplete.
+- Dismiss a known advisory with a saved reason scoped to the project folder.
+  Show dismissed findings later or restore them without changing JSON.
+- Import a compatible CDDA JSON-data folder to create an offline typed-ID
+  snapshot. Only the compact index is saved under app data; the original game
+  files are not copied, modified, or bundled. Matching vanilla IDs suppress
+  “not found in opened projects” advisories, and known vanilla MOD_INFO IDs
+  can resolve dependency advisories too.
+- Run a full-project validation or recheck changed files. Unchanged files reuse
+  their indexed results, while project-wide references, inheritance cycles,
+  mod IDs, and dependencies are re-evaluated against the current open projects.
+- Validate JSON syntax, common CDDA structure, type-specific fields for
+  monsters, recipes, terrain, and furniture, and exact repeated definition
+  lines (`id`, `abstract`, or `ident`). Click a located finding to open and
+  highlight its source.
+- Check project-local `copy-from` and selected common ID references, detect
+  unambiguous inheritance cycles, and compare MOD_INFO dependencies and IDs
+  across opened projects. Unresolved references are explicitly advisory:
+  CDDA or a project not currently open may define them.
+- Findings are profiled as definite errors, likely issues, or checks needing
+  game data. Filter by severity, confidence profile, duplicates, empty files,
+  or text from the file, line, message, and JSON context. Findings include a
+  JSON Pointer, value, and source-line excerpt.
 - Validation results stay visible after project edits and are marked stale
   until validation is run again. Copy the full report or export all findings
   or only the filtered view as detailed HTML.
@@ -51,10 +73,11 @@ Project tools
 - Insert starter JSON definitions for common item, recipe, monster, terrain,
   and furniture types from the Editor header.
 - Run the built-in offline CDDA-aware checks without installing or bundling the
-  game. The checker validates JSON syntax, duplicate properties, typed entries,
-  common inheritance fields, MOD_INFO metadata, and vehicle placements. It does
-  not claim engine-level certainty for game registries, cross-file references,
-  or version-specific schemas.
+  game. They cover JSON syntax, duplicate properties, typed entries, common
+  inheritance fields, MOD_INFO metadata, selected vehicle placements, and
+  additional checks listed below. This is not the CDDA engine: game registries,
+  version-specific schemas, and references outside opened projects still need
+  matching game data for confirmation.
 
 Search counts
 
@@ -64,6 +87,19 @@ Huge files count matches in the background so the editor remains responsive.
 
 v2.8.2 offline CDDA validation update
 
+- Added project-local reference checks for `copy-from`, recipe results, and
+  selected monster, terrain, and furniture ID fields. Unresolved IDs are
+  labelled “needs game data,” not reported as definite game errors.
+- Detect inheritance cycles when the opened definitions resolve to one
+  unambiguous chain, and check duplicate MOD_INFO IDs and dependencies across
+  opened projects. Dependencies not found in opened folders remain advisory.
+- Added conservative type-specific field-shape checks for monsters, recipes,
+  terrain, and furniture, with clickable source locations.
+- Added definite-error, likely-issue, and needs-game-data profiles with a
+  profile filter and profile labels in copied/exported reports.
+- Added “Recheck changed files.” It uses file fingerprints to avoid rereading
+  unchanged desktop files while refreshing project-wide checks; “Run full
+  validation” remains available at any time.
 - Expanded the lightweight validator with duplicate JSON-property detection,
   required typed-entry checks, ID/copy-from/abstract structure checks,
   inheritance-field validation, MOD_INFO required fields and property types,
