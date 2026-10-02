@@ -1,0 +1,41 @@
+{
+  "name": "cdda-json-editor-desktop",
+  "version": "2.8.1",
+  "description": "Desktop app wrapper for the CDDA JSON Editor and Formatter.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^36.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.gmc.cdda.jsoneditor",
+    "productName": "CDDA JSON Editor",
+    "artifactName": "CDDA_JSON_Editor_v${version}_Setup.${ext}",
+    "files": [
+      "main.js",
+      "preload.js",
+      "cdda_json_color_editor_local_formatter.html",
+      "json-app-icon-real-json.ico",
+      "README.txt"
+    ],
+    "win": {
+      "icon": "json-app-icon-real-json.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CDDA JSON Editor"
+    }
+  }
+}

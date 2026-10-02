@@ -1,5 +1,5 @@
 # cdda-json-editor-app
-CDDA JSON Editor Desktop v2.8.0
+CDDA JSON Editor Desktop v2.8.1
 
 This is a Windows/macOS/Linux desktop wrapper around the CDDA JSON Editor.
 It runs the editor in Electron, so native menu shortcuts are handled by the
@@ -35,6 +35,24 @@ root-level file appears as modinfo.json and nested paths do not repeat the
 head folder. The main project folder and every nested folder can be expanded
 or collapsed. Use the panel header toggle or File > Toggle Projects panel to
 minimize it, or the left/right arrows in its header to dock it on either side.
+
+v2.8.1 duplicate validation precision update
+
+- Project validation now reports only exact repeated definition-identifier
+  lines (`id`, `abstract`, or `ident`) across entries, rather than common
+  repeated JSON properties such as `type`.
+- Clicking a duplicate finding opens the file and highlights the complete line.
+- Filter validation findings by severity, duplicates, empty files, or matching
+  file, line, message, and JSON context text.
+- Validation findings include JSON Pointers, the related value, and a source-line
+  excerpt; clicking any located finding highlights its source in the editor.
+- Project validation results stay visible after project edits and are marked
+  stale until validation is run again.
+- Export either the complete validation report or only the currently filtered
+  findings as HTML; both reports include the JSON context details.
+- Syntax findings caused by trailing commas offer an undoable Quick fix.
+- Vehicle placement entries may share coordinates; repeated `x`/`y` values
+  are no longer reported as duplicates. Invalid coordinate types are still checked.
 
 v2.8.0 major project workflow release
 
@@ -148,7 +166,7 @@ v2.3.1 reliability update
 - Restore previous save is available from the tab toolbar and File menu.
 - Formatting and minifying now mark changed documents as modified.
 
-Run from CDDA_Json_Editor_Desktop_v2.8.0
+Run from CDDA_Json_Editor_Desktop_v2.8.1
 
 1. Install Node.js LTS.
 2. Open a terminal in this folder.
