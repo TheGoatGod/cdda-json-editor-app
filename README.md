@@ -1,5 +1,5 @@
 # cdda-json-editor-app
-CDDA JSON Editor Desktop v2.8.1
+CDDA JSON Editor Desktop v2.8.2
 
 This is a Windows/macOS/Linux desktop wrapper around the CDDA JSON Editor.
 It runs the editor in Electron, so native menu shortcuts are handled by the
@@ -35,6 +35,22 @@ root-level file appears as modinfo.json and nested paths do not repeat the
 head folder. The main project folder and every nested folder can be expanded
 or collapsed. Use the panel header toggle or File > Toggle Projects panel to
 minimize it, or the left/right arrows in its header to dock it on either side.
+
+v2.8.2 offline CDDA validation update
+
+- Expanded the lightweight validator with duplicate JSON-property detection,
+  required typed-entry checks, ID/copy-from/abstract structure checks,
+  inheritance-field validation, MOD_INFO required fields and property types,
+  and vehicle placement validation.
+- Duplicate JSON properties and other located findings can be clicked to
+  highlight their source. Repeated ID values alone are not duplicates; the
+  Projects duplicate filter covers exact repeated definition-identifier lines
+  and duplicate JSON properties.
+- Object-shaped special JSON files are informational rather than automatically
+  treated as project errors; unusual blank IDs and copy-from values are warnings.
+- No CDDA game executable or full game data is required. The offline checker
+  cannot guarantee detection of engine-only errors, unknown IDs, all schema
+  rules, or references outside the opened project.
 
 v2.8.1 duplicate validation precision update
 
