@@ -1,9 +1,232 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const crypto = require('node:crypto');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
+
+const execFileAsync = promisify(execFile);
 
 let mainWindow;
+let pendingOpenPaths = [];
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+
+function getJsonPathsFromArgs(args, workingDirectory = process.cwd()) {
+  const paths = [];
+  const seen = new Set();
+  for (const argument of args || []) {
+    if (typeof argument !== 'string' || argument.startsWith('--') || path.extname(argument).toLowerCase() !== '.json') continue;
+    const filePath = path.resolve(workingDirectory, argument);
+    const key = process.platform === 'win32' ? filePath.toLowerCase() : filePath;
+    if (!seen.has(key)) {
+      seen.add(key);
+      paths.push(filePath);
+    }
+  }
+  return paths.slice(0, 100);
+}
+
+function openJsonPaths(filePaths) {
+  const normalized = getJsonPathsFromArgs(filePaths);
+  if (!normalized.length) return;
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isLoading()) {
+    pendingOpenPaths = [...new Set([...pendingOpenPaths, ...normalized])].slice(0, 100);
+  } else {
+    mainWindow.webContents.send('open-json-paths', normalized);
+  }
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
+}
+
+if (hasSingleInstanceLock) {
+  app.on('second-instance', (_event, argv, workingDirectory) => {
+    openJsonPaths(getJsonPathsFromArgs(argv, workingDirectory));
+  });
+  app.on('open-file', (event, filePath) => {
+    event.preventDefault();
+    openJsonPaths([filePath]);
+  });
+} else {
+  app.quit();
+}
+
+async function registerJsonOpenWith() {
+  if (process.platform !== 'win32') return { ok: false, error: 'Default JSON app registration is currently supported on Windows.' };
+  try {
+    const executablePath = app.getPath('exe');
+    const executableName = path.basename(executablePath);
+    const progId = 'CDDAJsonEditor.Json';
+    const capabilitiesPath = 'Software\\CDDA JSON Editor\\Capabilities';
+    const commandParts = [executablePath];
+    if (!app.isPackaged) commandParts.push(path.join(__dirname, 'main.js'));
+    commandParts.push('%1');
+    const openCommand = commandParts.map(part => `"${part.replaceAll('"', '\\"')}"`).join(' ');
+    const iconValue = `"${executablePath}",0`;
+    const values = [
+      ['HKCU\\Software\\Classes\\.json\\OpenWithProgids', progId, 'REG_NONE'],
+      [`HKCU\\Software\\Classes\\${progId}`, null, 'REG_SZ', 'CDDA JSON file'],
+      [`HKCU\\Software\\Classes\\${progId}\\DefaultIcon`, null, 'REG_SZ', iconValue],
+      [`HKCU\\Software\\Classes\\${progId}\\shell\\open\\command`, null, 'REG_SZ', openCommand],
+      [`HKCU\\Software\\Classes\\Applications\\${executableName}\\SupportedTypes`, '.json', 'REG_SZ', ''],
+      [`HKCU\\Software\\Classes\\Applications\\${executableName}\\shell\\open\\command`, null, 'REG_SZ', openCommand],
+      [`HKCU\\${capabilitiesPath}`, 'ApplicationName', 'REG_SZ', 'CDDA JSON Editor'],
+      [`HKCU\\${capabilitiesPath}`, 'ApplicationDescription', 'REG_SZ', 'Edit and validate Cataclysm: Dark Days Ahead JSON files.'],
+      [`HKCU\\${capabilitiesPath}\\FileAssociations`, '.json', 'REG_SZ', progId],
+      ['HKCU\\Software\\RegisteredApplications', 'CDDA JSON Editor', 'REG_SZ', capabilitiesPath]
+    ];
+    for (const [key, valueName, type, data] of values) {
+      const args = ['add', key, valueName === null ? '/ve' : '/v', ...(valueName === null ? [] : [valueName]), '/t', type];
+      if (data !== undefined) args.push('/d', data);
+      args.push('/f');
+      await execFileAsync('reg.exe', args, { windowsHide: true });
+    }
+    const settingsUri = `ms-settings:defaultapps?registeredAppUser=${encodeURIComponent('CDDA JSON Editor')}`;
+    await shell.openExternal(settingsUri);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error && error.message ? error.message : 'Could not register the app with Windows.' };
+  }
+}
+
+ipcMain.handle('register-json-open-with', registerJsonOpenWith);
+
+const MAX_GIT_DIFF_BYTES = 8 * 1024 * 1024;
+
+async function resolveGitProjectRoot(folderPath) {
+  if (typeof folderPath !== 'string' || !path.isAbsolute(folderPath)) throw new Error('Choose an opened project folder first.');
+  const absolutePath = path.resolve(folderPath);
+  const stat = await fs.stat(absolutePath);
+  if (!stat.isDirectory()) throw new Error('The selected project path is not a folder.');
+  const { stdout } = await execFileAsync('git', ['-C', absolutePath, 'rev-parse', '--show-toplevel'], {
+    encoding: 'utf8', timeout: 15000, windowsHide: true, maxBuffer: 1024 * 1024
+  });
+  return path.resolve(stdout.trim());
+}
+
+async function runGitAtRoot(root, args, options = {}) {
+  return execFileAsync('git', ['-C', root, ...args], {
+    encoding: options.encoding || 'utf8', timeout: 30000, windowsHide: true,
+    maxBuffer: MAX_GIT_DIFF_BYTES + 1024 * 1024
+  });
+}
+
+function validateGitRelativePath(root, filePath) {
+  if (typeof filePath !== 'string' || !filePath.trim() || path.isAbsolute(filePath)) throw new Error('Select a file from the Git change list.');
+  const normalized = filePath.replace(/[\\/]+/g, path.sep);
+  const absolutePath = path.resolve(root, normalized);
+  const relative = path.relative(root, absolutePath);
+  if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) throw new Error('The selected path is outside this project.');
+  return relative;
+}
+
+async function getGitStatus(root) {
+  const { stdout } = await runGitAtRoot(root, ['status', '--porcelain=v1', '-z', '--branch', '--untracked-files=all']);
+  const records = stdout.split('\0').filter(Boolean);
+  const header = records.shift() || '';
+  const branch = header.startsWith('## ') ? header.slice(3).split('...')[0] : 'HEAD';
+  const files = [];
+  for (let index = 0; index < records.length; index += 1) {
+    const record = records[index];
+    if (record.length < 4) continue;
+    const code = record.slice(0, 2);
+    let filePath = record.slice(3);
+    if (code.includes('R') || code.includes('C')) index += 1;
+    filePath = filePath.replace(/\\/g, '/');
+    files.push({
+      path: filePath,
+      code,
+      staged: code[0] !== ' ' && code[0] !== '?',
+      unstaged: code[1] !== ' ',
+      untracked: code === '??',
+      deleted: code.includes('D'),
+      renamed: code.includes('R') || code.includes('C')
+    });
+  }
+  return { branch, files };
+}
+
+ipcMain.handle('git-review-status', async (_event, folderPath) => {
+  try {
+    const root = await resolveGitProjectRoot(folderPath);
+    const status = await getGitStatus(root);
+    return { ok: true, root, branch: status.branch, files: status.files };
+  } catch (error) {
+    const missingGit = error && (error.code === 'ENOENT' || /not a git repository/i.test(error.message || ''));
+    return { ok: false, error: missingGit && error.code === 'ENOENT' ? 'Git was not found. Install Git for Windows to use change review.' : (error?.message || 'Could not read Git status.') };
+  }
+});
+
+ipcMain.handle('git-review-diff', async (_event, payload = {}) => {
+  try {
+    const root = await resolveGitProjectRoot(payload.rootPath);
+    const filePath = validateGitRelativePath(root, payload.filePath);
+    const status = await getGitStatus(root);
+    const change = status.files.find(item => item.path === filePath.split(path.sep).join('/'));
+    if (!change) return { ok: false, error: 'That file is no longer in the Git change list. Refresh and try again.' };
+    if (change.untracked) {
+      const absolutePath = path.resolve(root, filePath);
+      const stat = await fs.stat(absolutePath);
+      if (!stat.isFile()) return { ok: false, error: 'The selected path is not a file.' };
+      if (stat.size > MAX_GIT_DIFF_BYTES) return { ok: false, error: 'Untracked file is over the 8 MB preview limit. Stage it to include it in a Git diff.' };
+      const text = await fs.readFile(absolutePath, 'utf8');
+      const lines = text.split(/\r?\n/).map(line => `+${line}`).join('\n');
+      return { ok: true, diff: `New untracked file: ${filePath.split(path.sep).join('/')}\n${lines}`, kind: 'untracked' };
+    }
+    const args = ['diff', '--no-ext-diff', '--no-color', '--unified=3'];
+    if (payload.staged) args.push('--cached');
+    args.push('--', filePath.split(path.sep).join('/'));
+    const { stdout } = await runGitAtRoot(root, args);
+    return { ok: true, diff: stdout || 'No differences in this view.', kind: payload.staged ? 'staged' : 'working' };
+  } catch (error) {
+    const missingGit = error && error.code === 'ENOENT';
+    return { ok: false, error: missingGit ? 'Git was not found. Install Git for Windows to use change review.' : (error?.message || 'Could not read the selected diff.') };
+  }
+});
+
+ipcMain.handle('git-review-stage', async (_event, payload = {}) => {
+  try {
+    const root = await resolveGitProjectRoot(payload.rootPath);
+    if (payload.all === true) await runGitAtRoot(root, ['add', '-A']);
+    else await runGitAtRoot(root, ['add', '--', validateGitRelativePath(root, payload.filePath)]);
+    return { ok: true, ...(await getGitStatus(root)) };
+  } catch (error) {
+    const missingGit = error && error.code === 'ENOENT';
+    return { ok: false, error: missingGit ? 'Git was not found. Install Git for Windows to use change review.' : (error?.message || 'Could not stage changes.') };
+  }
+});
+
+ipcMain.handle('git-review-unstage', async (_event, payload = {}) => {
+  try {
+    const root = await resolveGitProjectRoot(payload.rootPath);
+    const filePath = validateGitRelativePath(root, payload.filePath);
+    try {
+      await runGitAtRoot(root, ['reset', '--quiet', 'HEAD', '--', filePath]);
+    } catch (error) {
+      if (!/ambiguous argument 'HEAD'|unknown revision.*HEAD/i.test(error?.stderr || error?.message || '')) throw error;
+      await runGitAtRoot(root, ['rm', '--cached', '--', filePath]);
+    }
+    return { ok: true, ...(await getGitStatus(root)) };
+  } catch (error) {
+    const missingGit = error && error.code === 'ENOENT';
+    return { ok: false, error: missingGit ? 'Git was not found. Install Git for Windows to use change review.' : (error?.message || 'Could not unstage this file.') };
+  }
+});
+
+ipcMain.handle('git-review-commit', async (_event, payload = {}) => {
+  try {
+    const root = await resolveGitProjectRoot(payload.rootPath);
+    const message = typeof payload.message === 'string' ? payload.message.trim().slice(0, 500) : '';
+    if (!message) return { ok: false, error: 'Enter a commit message first.' };
+    const { stdout } = await runGitAtRoot(root, ['commit', '-m', message]);
+    return { ok: true, output: stdout, ...(await getGitStatus(root)) };
+  } catch (error) {
+    const missingGit = error && error.code === 'ENOENT';
+    return { ok: false, error: missingGit ? 'Git was not found. Install Git for Windows to use change review.' : (error?.stderr || error?.message || 'Could not commit staged changes.') };
+  }
+});
 
 function sendCommand(command) {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -625,6 +848,12 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'cdda_json_color_editor_local_formatter.html'));
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (pendingOpenPaths.length) {
+      mainWindow.webContents.send('open-json-paths', pendingOpenPaths);
+      pendingOpenPaths = [];
+    }
+  });
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
@@ -690,8 +919,10 @@ function installMenu() {
 }
 
 app.whenReady().then(() => {
+  if (!hasSingleInstanceLock) return;
   installMenu();
   createWindow();
+  openJsonPaths(getJsonPathsFromArgs(process.argv, process.cwd()));
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

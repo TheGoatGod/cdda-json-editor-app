@@ -25,6 +25,8 @@ Ctrl/Cmd + P          Quick Open project files, recent files, and tabs
 
 Ctrl/Cmd + G          Go to a line in the active file
 
+Ctrl/Cmd + D          Add the next matching selection as a multi-cursor
+
 Ctrl/Cmd + Shift + C  Copy the JSON Pointer at the cursor
 
 Ctrl/Cmd + Alt + R    Restore the active tab's previous saved version
@@ -35,6 +37,28 @@ root-level file appears as modinfo.json and nested paths do not repeat the
 head folder. The main project folder and every nested folder can be expanded
 or collapsed. Use the panel header toggle or File > Toggle Projects panel to
 minimize it, or the left/right arrows in its header to dock it on either side.
+
+To use this as the default JSON editor on Windows, open Settings > Behavior >
+Default app for JSON files and choose “Choose default…”. The app registers
+itself with Windows and opens Default apps; select CDDA JSON Editor for `.json`.
+Windows requires this final choice in its own Settings. Once selected, opening
+a `.json` file from File Explorer sends it to a tab in the editor.
+
+Git change review, split editing, and multi-cursor
+
+- Open Project Tools > Git changes to review saved working-tree and staged
+  diffs for an opened Git project. Stage or unstage individual files, stage all
+  changes, and create a commit from staged changes after confirming the commit.
+  Git for Windows must be installed; the editor does not automatically save
+  open buffers before showing Git diffs.
+- Use Split editor to show two independently editable open tabs side by side.
+  Choose the file for the second pane from its menu, drag the center divider to
+  resize, and save whichever pane has focus with Ctrl/Cmd+S. Save all includes
+  edits from both panes.
+- Select text (or place the caret on a word) and press Ctrl/Cmd+D repeatedly
+  to add matching occurrences as cursors. Typing, deletion, cut, and paste
+  apply at every selected occurrence; Escape clears the extra cursors. One
+  multi-cursor operation is limited to 200 occurrences.
 
 v2.8.4 project workflow update
 

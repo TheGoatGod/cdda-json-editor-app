@@ -5,6 +5,28 @@ contextBridge.exposeInMainWorld('cddaDesktop', {
     if (typeof callback !== 'function') return;
     ipcRenderer.on('native-command', (_event, command) => callback(command));
   },
+  onOpenJsonPaths(callback) {
+    if (typeof callback !== 'function') return;
+    ipcRenderer.on('open-json-paths', (_event, filePaths) => callback(filePaths));
+  },
+  registerJsonOpenWith() {
+    return ipcRenderer.invoke('register-json-open-with');
+  },
+  getGitReviewStatus(rootPath) {
+    return ipcRenderer.invoke('git-review-status', rootPath);
+  },
+  getGitReviewDiff(payload) {
+    return ipcRenderer.invoke('git-review-diff', payload);
+  },
+  stageGitReviewFile(payload) {
+    return ipcRenderer.invoke('git-review-stage', payload);
+  },
+  unstageGitReviewFile(payload) {
+    return ipcRenderer.invoke('git-review-unstage', payload);
+  },
+  commitGitReviewChanges(payload) {
+    return ipcRenderer.invoke('git-review-commit', payload);
+  },
   getPathForFile(file) {
     try {
       return webUtils.getPathForFile(file) || null;

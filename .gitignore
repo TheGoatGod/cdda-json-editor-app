@@ -6,3 +6,4 @@
 !**/dist*/*.exe
 **/*.blockmap
 **/builder-debug.yml
+/CDDA_Json_Editor_Desktop_v2.8.4/dist-git-split-staging/

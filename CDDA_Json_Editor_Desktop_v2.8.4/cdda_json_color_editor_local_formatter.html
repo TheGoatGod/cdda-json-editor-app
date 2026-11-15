@@ -117,6 +117,13 @@
   .project-tools-controls label{ display:inline-flex; align-items:center; gap:6px; color:var(--muted); white-space:nowrap; }
   .project-tools-controls label input[type="checkbox"]{ min-width:0; width:14px; height:14px; margin:0; padding:0; accent-color:var(--accent); }
   .project-tools-results{ min-height:180px; max-height:52vh; overflow:auto; display:grid; align-content:start; gap:6px; padding:8px; border:1px solid var(--border); border-radius:10px; background:#0b1220; }
+  .git-review-layout{ display:grid; grid-template-columns:minmax(220px,.75fr) minmax(0,1.4fr); gap:10px; min-height:360px; }
+  .git-review-file{ display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; align-items:center; gap:7px; width:100%; padding:8px; border:1px solid var(--border); border-radius:8px; background:rgba(148,163,184,.04); color:var(--text); text-align:left; }
+  .git-review-file.selected{ border-color:var(--accent); background:rgba(56,189,248,.1); }
+  .git-review-file-path{ min-width:0; overflow-wrap:anywhere; }
+  .git-review-code{ color:var(--accent); font:12px ui-monospace,SFMono-Regular,Consolas,monospace; }
+  .git-review-diff{ min-height:360px; max-height:52vh; overflow:auto; margin:0; padding:12px; border:1px solid var(--border); border-radius:10px; background:#0b1220; color:var(--text); font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:pre; }
+  @media (max-width:760px){ .git-review-layout{ grid-template-columns:1fr; } }
   .project-tools-pane textarea{ min-width:160px; }
   .custom-rule-row{ display:grid; grid-template-columns:minmax(110px,1fr) minmax(150px,2fr) auto; align-items:center; gap:8px; padding:8px; border:1px solid var(--border); border-radius:8px; background:rgba(148,163,184,.04); }
   .custom-rule-row small{ display:block; color:var(--muted); margin-top:3px; overflow-wrap:anywhere; }
@@ -319,6 +326,7 @@
     white-space:nowrap;
   }
   .tab.active{ color:var(--text); border-color:#177aa8; background:#172033; }
+  .tab.split-target{ border-style:dashed; border-color:rgba(56,189,248,.48); }
   .tab.drag-over{ border-color:var(--accent); box-shadow:0 0 0 1px rgba(56,189,248,.35) inset; }
   .tab-close{ color:var(--muted); border:0; background:transparent; cursor:pointer; padding:0 2px; }
   .tabs-tools{ display:flex; align-items:center; gap:6px; margin-left:auto; }
@@ -370,6 +378,15 @@
   .editor-wrap.no-line-numbers .input-layer,
   .editor-wrap.no-line-numbers .regex-highlights{ padding-left:16px; }
   .editor-wrap.no-regex-highlights .regex-highlights{ display:none; }
+  .regex-highlights mark.multi-cursor-selection{ background:rgba(251,191,36,.24); outline:1px solid rgba(251,191,36,.75); border-radius:2px; }
+  .regex-highlights .multi-cursor-caret{ position:relative; color:transparent; }
+  .regex-highlights .multi-cursor-caret::after{ content:""; position:absolute; inset:-1px auto -1px 0; border-left:2px solid #fbbf24; }
+  .code-layer .multi-cursor-selection{ color:inherit; background:rgba(251,191,36,.24); outline:1px solid rgba(251,191,36,.75); border-radius:2px; }
+  .code-layer .multi-cursor-caret{ position:relative; color:transparent; }
+  .code-layer .multi-cursor-caret::after{ content:""; position:absolute; inset:-1px auto -1px 0; border-left:2px solid #fbbf24; }
+  #mainEditorWrap.multi-cursor-active .regex-highlights{ display:block !important; }
+  #splitEditorWrap.multi-cursor-active .code-layer{ display:block !important; color:var(--text); }
+  #splitEditorWrap.multi-cursor-active .input-layer{ color:transparent; }
   .editor-wrap.word-wrap .code-layer,
   .editor-wrap.word-wrap .input-layer,
   .editor-wrap.word-wrap .regex-highlights{ white-space:pre-wrap; overflow-wrap:anywhere; }
@@ -507,6 +524,20 @@
     display:flex;
     flex-direction:column;
   }
+  .editor-panes{ display:flex; flex:1; min-height:0; min-width:0; overflow:hidden; }
+  .editor-panes > .editor-wrap{ flex:1 1 100%; min-width:0; }
+  .editor-panes.split-active > .editor-wrap{ flex:0 0 var(--split-main-width,50%); }
+  .split-editor-column{ display:flex; flex:1 1 50%; flex-direction:column; min-width:0; min-height:0; background:var(--panel); }
+  .split-editor-column[hidden],.split-resize-handle[hidden]{ display:none !important; }
+  .split-editor-head{ display:flex; align-items:center; gap:8px; min-height:38px; padding:5px 8px; border-bottom:1px solid var(--border); background:rgba(6,10,20,.38); }
+  .split-editor-head select{ min-width:0; flex:1; }
+  .split-editor-column .editor-wrap{ flex:1 1 auto; min-width:0; }
+  .split-resize-handle{ z-index:4; flex:0 0 7px; cursor:col-resize; background:var(--border); touch-action:none; }
+  .split-resize-handle:hover,.split-resize-handle.dragging{ background:var(--accent); }
+  .split-editor-column .line-numbers{ display:block; }
+  .split-editor-column .input-layer{ color:transparent; }
+  .split-editor-column .editor-wrap.plain .input-layer{ color:var(--text); }
+  .split-editor-column .code-layer{ display:block; }
   .panel:last-child{ border-right:none; }
   .compare-panel{
     display:none;
@@ -917,7 +948,7 @@
         <button class="btn" id="projectsOpenBtn" type="button">Open folder</button>
         <button class="btn" id="clearProjectsBtn" type="button">Clear</button>
         <button class="btn" id="validateProjectBtn" type="button">Validate</button>
-        <button class="btn" id="searchProjectBtn" type="button">Search files</button>
+        <button class="btn" id="projectToolsOpenBtn" type="button">Project tools</button>
         <input id="projectFilter" type="search" placeholder="Filter JSON…" aria-label="Filter project JSON files" />
         <select id="projectHealthFilter" aria-label="Filter project files by health"><option value="all">All project JSON files</option><option value="problems">Validation problems</option><option value="errors">Errors / unreadable</option><option value="warnings">Warnings</option><option value="modified">Unsaved tabs</option><option value="external">Changed on disk</option></select>
       </div>
@@ -926,8 +957,9 @@
       </div>
     </section>
     <section class="panel">
-      <div class="panelhead"><span>Editor</span><span class="grow"></span><button class="btn" id="findReferencesBtn" type="button" title="Find this ID in project files">Find ID</button><button class="btn" id="peekIdDefinitionBtn" type="button" title="Preview the definition for the ID at the cursor">Peek ID</button><select class="btn sample-select" id="snippetSelect" aria-label="Insert JSON snippet"><option value="">Insert snippet…</option><optgroup label="Items"><option value="item">Generic item</option><option value="weapon">Melee weapon</option><option value="food">Food</option><option value="drink">Drink</option><option value="tool">Tool</option><option value="armor">Armor / clothing</option><option value="book">Book</option></optgroup><optgroup label="Definitions"><option value="recipe">Crafting recipe</option><option value="monster">Monster</option><option value="terrain">Terrain</option><option value="furniture">Furniture</option><option value="construction">Construction</option><option value="mutation">Mutation</option><option value="modinfo">Mod info</option><option value="generic">Generic JSON object</option></optgroup></select><button class="btn" id="manageSnippetsBtn" type="button" title="Manage custom JSON snippets">Snippets…</button></div>
-      <div class="editor-wrap">
+      <div class="panelhead"><span>Editor</span><button class="btn" id="splitEditorBtn" type="button" title="Open a second editable tab beside this one">Split editor</button><span class="grow"></span><button class="btn" id="findReferencesBtn" type="button" title="Find this ID in project files">Find ID</button><button class="btn" id="peekIdDefinitionBtn" type="button" title="Preview the definition for the ID at the cursor">Peek ID</button><select class="btn sample-select" id="snippetSelect" aria-label="Insert JSON snippet"><option value="">Insert snippet…</option><optgroup label="Items"><option value="item">Generic item</option><option value="weapon">Melee weapon</option><option value="food">Food</option><option value="drink">Drink</option><option value="tool">Tool</option><option value="armor">Armor / clothing</option><option value="book">Book</option></optgroup><optgroup label="Definitions"><option value="recipe">Crafting recipe</option><option value="monster">Monster</option><option value="terrain">Terrain</option><option value="furniture">Furniture</option><option value="construction">Construction</option><option value="mutation">Mutation</option><option value="modinfo">Mod info</option><option value="generic">Generic JSON object</option></optgroup></select><button class="btn" id="manageSnippetsBtn" type="button" title="Manage custom JSON snippets">Snippets…</button></div>
+      <div class="editor-panes" id="editorPanes">
+      <div class="editor-wrap" id="mainEditorWrap">
         <pre class="code-layer" id="highlighted" aria-hidden="true"></pre>
         <pre class="regex-highlights" id="regexHighlights" aria-hidden="true"></pre>
         <pre class="line-numbers" id="lineNumbers" aria-hidden="true">1</pre>
@@ -935,6 +967,16 @@
         <div class="code-completion hidden" id="codeCompletion" role="listbox" aria-label="JSON code suggestions"></div>
         <div class="id-autocomplete hidden" id="idAutocomplete" role="listbox" aria-label="ID suggestions"></div>
         <div class="id-definition-preview hidden" id="idDefinitionPreview" role="status" aria-live="polite"></div>
+      </div>
+      <div class="split-resize-handle" id="splitResizeHandle" role="separator" aria-label="Resize editor panes" aria-orientation="vertical" tabindex="0" hidden></div>
+      <section class="split-editor-column" id="splitEditorColumn" aria-label="Second editor pane" hidden>
+        <div class="split-editor-head"><select id="splitTabSelect" class="btn" aria-label="File shown in second editor pane"></select><button class="btn" id="closeSplitEditorBtn" type="button" title="Close the second pane">×</button></div>
+        <div class="editor-wrap" id="splitEditorWrap">
+          <pre class="code-layer" id="splitHighlighted" aria-hidden="true"></pre>
+          <pre class="line-numbers" id="splitLineNumbers" aria-hidden="true">1</pre>
+          <textarea class="input-layer" id="splitEditor" aria-label="Second editable JSON pane" spellcheck="false" wrap="off"></textarea>
+        </div>
+      </section>
       </div>
       <div class="foot" id="cursorInfo"><span id="cursorPosition">Line 1, Column 1</span><button class="btn json-pointer-button" id="copyJsonPathBtn" type="button" disabled title="A JSON Pointer will appear here when the document is valid">JSON Pointer: —</button><button class="btn hidden" id="reviewExternalChangeBtn" type="button">Compare disk changes</button><button class="btn hidden" id="externalChangeBtn" type="button">Reload from disk</button></div>
     </section>
@@ -1003,7 +1045,8 @@
           <button class="btn" type="button" data-project-mode="workspaces">Workspace presets</button>
           <button class="btn" type="button" data-project-mode="customRules">Custom rules</button>
           <button class="btn" type="button" data-project-mode="jsonPath">JSONPath</button>
-          <button class="btn" type="button" data-project-mode="vanilla">Vanilla overrides</button>
+        <button class="btn" type="button" data-project-mode="vanilla">Vanilla overrides</button>
+        <button class="btn" type="button" data-project-mode="git">Git changes</button>
       </div>
       <div class="project-tools-body">
         <section class="project-tools-pane" id="projectValidatePane">
@@ -1106,6 +1149,11 @@
           <div class="project-tool-status" id="vanillaCompareStatus">Compares the opened mod definition against the active offline vanilla snapshot. Only fields differing from vanilla are listed.</div>
           <div class="project-tools-results" id="vanillaCompareResults"><div class="help">Import a snapshot, open a mod folder, then choose a type, ID, and project.</div></div>
         </section>
+        <section class="project-tools-pane" id="projectGitPane" hidden>
+          <div class="project-tools-controls"><select id="gitProjectSelect" aria-label="Git project folder"><option value="">Choose an opened folder…</option></select><button class="btn primary" id="refreshGitReviewBtn" type="button">Refresh status</button><button class="btn" id="stageAllGitChangesBtn" type="button" disabled>Stage all</button><span class="project-tool-status" id="gitReviewStatus">Git review shows saved files. Save editor tabs before refreshing to include your latest edits.</span></div>
+          <div class="project-tools-controls"><input id="gitCommitMessage" type="text" maxlength="500" placeholder="Commit message for staged files…" aria-label="Git commit message" /><button class="btn" id="commitGitChangesBtn" type="button" disabled>Commit staged</button><button class="btn" id="unstageAllGitChangesBtn" type="button" disabled>Unstage all</button></div>
+          <div class="git-review-layout"><div class="project-tools-results" id="gitReviewFiles"><div class="help">Choose a project folder to review its Git changes.</div></div><div><div class="project-tools-controls"><span class="project-tool-status" id="gitDiffTitle">Select a changed file</span><span class="grow"></span><button class="btn" id="gitDiffWorkingBtn" type="button" disabled>Working diff</button><button class="btn" id="gitDiffStagedBtn" type="button" disabled>Staged diff</button></div><pre class="git-review-diff" id="gitReviewDiff">Git diffs will appear here. Untracked files are previewed as new files.</pre></div></div>
+        </section>
       </div>
     </section>
   </div>
@@ -1171,6 +1219,7 @@
         </div>
         <div class="settings-group">
           <h3>Behavior</h3>
+          <div class="setting-row"><label for="setJsonDefaultBtn"><strong>Default app for JSON files</strong><small>Register CDDA JSON Editor with Windows and open Default apps. Choose it for .json there; Windows requires your confirmation.</small></label><button class="btn" id="setJsonDefaultBtn" type="button">Choose default…</button></div>
           <div class="setting-row"><label for="settingAutoValidate"><strong>Validate while editing</strong><small>Run the CDDA structure check after a short pause while typing.</small></label><input id="settingAutoValidate" type="checkbox" /></div>
           <div class="setting-row"><label for="settingConfirmClose"><strong>Confirm modified tab close</strong><small>Ask before closing a tab with unsaved changes.</small></label><input id="settingConfirmClose" type="checkbox" /></div>
           <div class="setting-row"><label for="settingRestoreTabs"><strong>Restore tabs on startup</strong><small>Remember smaller open files locally; huge files are never stored.</small></label><input id="settingRestoreTabs" type="checkbox" /></div>
@@ -1210,6 +1259,7 @@
             <li><strong>Ctrl/Cmd + H</strong> — focus replacement</li>
             <li><strong>Ctrl/Cmd + P</strong> — Quick Open project files</li>
             <li><strong>Ctrl/Cmd + G</strong> — go to line</li>
+            <li><strong>Ctrl/Cmd + D</strong> — add the next matching occurrence as a cursor</li>
             <li><strong>Enter / Shift + Enter</strong> — next / previous match</li>
             <li><strong>F3 / Shift + F3</strong> — next / previous match</li>
             <li><strong>Ctrl/Cmd + Tab</strong> — next open file</li>
@@ -1240,7 +1290,16 @@
 <script>
 (() => {
   const editor = document.getElementById('editor');
-  const editorWrap = document.querySelector('.editor-wrap');
+  const editorWrap = document.getElementById('mainEditorWrap');
+  const editorPanes = document.getElementById('editorPanes');
+  const splitEditorBtn = document.getElementById('splitEditorBtn');
+  const splitEditorColumn = document.getElementById('splitEditorColumn');
+  const splitEditorWrap = document.getElementById('splitEditorWrap');
+  const splitEditor = document.getElementById('splitEditor');
+  const splitHighlighted = document.getElementById('splitHighlighted');
+  const splitLineNumbers = document.getElementById('splitLineNumbers');
+  const splitResizeHandle = document.getElementById('splitResizeHandle');
+  const splitTabSelect = document.getElementById('splitTabSelect');
   const highlighted = document.getElementById('highlighted');
   const treeView = document.getElementById('treeView');
   const structureExpandAll = document.getElementById('structureExpandAll');
@@ -1295,6 +1354,12 @@
   const projectFilter = document.getElementById('projectFilter');
   const projectHealthFilter = document.getElementById('projectHealthFilter');
   const projectToolsBackdrop = document.getElementById('projectToolsBackdrop');
+  const gitProjectSelect = document.getElementById('gitProjectSelect');
+  const gitReviewStatus = document.getElementById('gitReviewStatus');
+  const gitReviewFiles = document.getElementById('gitReviewFiles');
+  const gitReviewDiff = document.getElementById('gitReviewDiff');
+  const gitDiffTitle = document.getElementById('gitDiffTitle');
+  const gitCommitMessage = document.getElementById('gitCommitMessage');
   const commandBackdrop = document.getElementById('commandBackdrop');
   const commandTitle = document.getElementById('commandTitle');
   const commandInput = document.getElementById('commandInput');
@@ -1443,8 +1508,20 @@
   let tabs = [{ id: 1, storageId: createStorageId(), name: 'untitled.json', filePath: null, text: '', savedText: '', dirty: false, scrollTop: 0, scrollLeft: 0, selectionStart: 0, selectionEnd: 0 }];
   let activeTabId = 1;
   let nextTabId = 2;
+  let splitTabId = null;
+  let splitMainWidth = 50;
+  let splitEditorRefreshFrame = 0;
+  let lastFocusedEditorPane = 'main';
+  let multiCursorSelections = [];
+  let multiCursorUndoStack = [];
+  let multiCursorRedoStack = [];
+  let applyingMultiCursorEdit = false;
   let projects = [];
   let nextProjectId = 1;
+  let gitChangedFiles = [];
+  let gitSelectedPath = '';
+  let gitCurrentRoot = '';
+  let gitCurrentBranch = '';
   let projectsCollapsed = false;
   let projectsDock = 'left';
   let searchIndex = -1;
@@ -1727,7 +1804,7 @@
     LARGE_FILE_CHAR_LIMIT = Number(settings.largeFileLimit);
     HUGE_FILE_CHAR_LIMIT = Number(settings.hugeFileLimit);
     editor.setAttribute('wrap', settings.wordWrap ? 'soft' : 'off');
-    [editor, highlighted, regexHighlights, lineNumbers, compareLeftContent, compareContent].forEach(node => {
+    [editor, highlighted, regexHighlights, lineNumbers, compareLeftContent, compareContent, splitEditor, splitHighlighted, splitLineNumbers].forEach(node => {
       if (node) {
         node.style.tabSize = String(settings.tabSize);
         node.style.fontSize = `${settings.fontSize}px`;
@@ -1745,6 +1822,10 @@
     editorWrap.classList.toggle('no-line-numbers', !settings.lineNumbers);
     editorWrap.classList.toggle('no-regex-highlights', !settings.regexHighlights);
     editorWrap.classList.toggle('word-wrap', settings.wordWrap);
+    splitEditor.setAttribute('wrap', settings.wordWrap ? 'soft' : 'off');
+    splitEditorWrap.classList.toggle('no-syntax', !settings.syntaxColors);
+    splitEditorWrap.classList.toggle('no-line-numbers', !settings.lineNumbers);
+    splitEditorWrap.classList.toggle('word-wrap', settings.wordWrap);
     topbar.classList.toggle('hide-status-badges', !settings.statusBadges);
     topbar.classList.toggle('compact-toolbar', settings.compactToolbar);
     document.querySelectorAll('.search-tool').forEach(node => node.classList.toggle('hidden', !settings.searchTools));
@@ -1773,6 +1854,7 @@
     if (!settings.codeSuggestions) codeCompletion.classList.add('hidden');
     else if (document.activeElement === editor) scheduleCodeCompletion(0);
     refreshEditorView();
+    if (!splitEditorColumn.hidden) refreshSplitEditorView();
   }
 
   function loadProjectsViewState(){
@@ -2155,11 +2237,139 @@
     tab.scrollLeft = editor.scrollLeft;
     tab.selectionStart = editor.selectionStart || 0;
     tab.selectionEnd = editor.selectionEnd || tab.selectionStart;
+    syncSplitTab();
+  }
+
+  function splitTab(){ return splitTabId === null ? null : tabs.find(tab => tab.id === splitTabId) || null; }
+
+  function syncSplitTab(){
+    const tab = splitTab();
+    if (!tab || splitEditorColumn.hidden) return;
+    tab.text = splitEditor.value;
+    tab.name = tab.name || 'untitled.json';
+    tab.scrollTop = splitEditor.scrollTop;
+    tab.scrollLeft = splitEditor.scrollLeft;
+    tab.selectionStart = splitEditor.selectionStart || 0;
+    tab.selectionEnd = splitEditor.selectionEnd || tab.selectionStart;
+    tab.dirty = tab.text !== tab.savedText;
+  }
+
+  function renderSplitTabOptions(){
+    const available = tabs.filter(tab => tab.id !== activeTabId);
+    splitTabSelect.replaceChildren();
+    available.forEach(tab => {
+      const option = document.createElement('option');
+      option.value = String(tab.id);
+      option.textContent = `${tab.dirty ? '• ' : ''}${tab.name}${tab.name === activeTab()?.name ? ' · second tab' : ''}`;
+      splitTabSelect.appendChild(option);
+    });
+    splitTabSelect.disabled = available.length === 0;
+    if (splitTabId !== null && available.some(tab => tab.id === splitTabId)) splitTabSelect.value = String(splitTabId);
+  }
+
+  function loadSplitTab(tab){
+    if (!tab) return;
+    splitTabId = tab.id;
+    splitEditor.value = tab.text;
+    splitTabSelect.value = String(tab.id);
+    splitEditor.scrollTop = Math.max(0, Number(tab.scrollTop) || 0);
+    splitEditor.scrollLeft = Math.max(0, Number(tab.scrollLeft) || 0);
+    const start = Math.max(0, Math.min(Number(tab.selectionStart) || 0, splitEditor.value.length));
+    const end = Math.max(start, Math.min(Number(tab.selectionEnd) || start, splitEditor.value.length));
+    splitEditor.setSelectionRange(start, end);
+    refreshSplitEditorView();
+  }
+
+  function openSplitEditor(){
+    if (layout.classList.contains('compare-active')) toggleCompare();
+    if (splitTabId !== null && splitTab()) { closeSplitEditor(); return; }
+    let target = tabs.find(tab => tab.id !== activeTabId);
+    if (!target) {
+      target = { id: nextTabId++, storageId: createStorageId(), name: 'untitled-split.json', filePath: null, fingerprint: null, externalChanged: false, text: '', savedText: '', dirty: false, scrollTop: 0, scrollLeft: 0, selectionStart: 0, selectionEnd: 0 };
+      tabs.push(target);
+    }
+    splitEditorColumn.hidden = false;
+    splitResizeHandle.hidden = false;
+    editorPanes.classList.add('split-active');
+    editorPanes.style.setProperty('--split-main-width', `${splitMainWidth}%`);
+    splitEditorBtn.textContent = 'Close split';
+    renderSplitTabOptions();
+    loadSplitTab(target);
+    renderTabs();
+    schedulePersistTabs();
+  }
+
+  function closeSplitEditor(){
+    syncSplitTab();
+    splitTabId = null;
+    splitEditorColumn.hidden = true;
+    splitResizeHandle.hidden = true;
+    editorPanes.classList.remove('split-active');
+    splitEditorBtn.textContent = 'Split editor';
+    lastFocusedEditorPane = 'main';
+    splitEditor.value = '';
+    splitHighlighted.textContent = '';
+    renderTabs();
+    schedulePersistTabs();
+  }
+
+  function refreshSplitEditorView(){
+    const text = splitEditor.value;
+    const lineCount = countLines(text);
+    const mode = detectPerformanceMode(text);
+    if (settings.wordWrap && mode !== 'huge' && lineCount <= MAX_WRAPPED_LINE_NUMBER_RENDER) {
+      const lines = text.split('\n');
+      const renderedNumbers = [];
+      const measure = configureWrapMeasure(splitEditor);
+      lines.forEach((line, index) => {
+        const rowCount = measureWrappedRows(line, measure, splitEditor);
+        renderedNumbers.push(String(index + 1));
+        for (let row = 1; row < rowCount; row += 1) renderedNumbers.push('');
+      });
+      splitLineNumbers.textContent = renderedNumbers.join('\n');
+    } else {
+      splitLineNumbers.textContent = lineCount > 20000
+        ? `1\n…\n${lineCount}`
+        : Array.from({ length: lineCount }, (_, index) => index + 1).join('\n');
+    }
+    splitEditorWrap.classList.toggle('plain', !settings.syntaxColors || mode !== 'live' || text.length > MAX_SEARCH_HIGHLIGHT_CHARS);
+    splitHighlighted.innerHTML = settings.syntaxColors && mode === 'live' && text.length <= MAX_SEARCH_HIGHLIGHT_CHARS ? highlightJSON(text) : '';
+    splitHighlighted.scrollTop = splitEditor.scrollTop;
+    splitHighlighted.scrollLeft = splitEditor.scrollLeft;
+    splitLineNumbers.scrollTop = splitEditor.scrollTop;
+  }
+
+  function scheduleSplitEditorRefresh(){
+    if (splitEditorRefreshFrame) return;
+    splitEditorRefreshFrame = requestAnimationFrame(() => {
+      splitEditorRefreshFrame = 0;
+      refreshSplitEditorView();
+      if (document.activeElement === splitEditor && multiCursorSelections.length > 1) renderMultiCursorHighlights();
+    });
+  }
+
+  function handleSplitEditorInput(){
+    const tab = splitTab();
+    if (!tab) return;
+    if (!applyingMultiCursorEdit) clearMultiCursorSelections(false);
+    syncSplitTab();
+    scheduleSplitEditorRefresh();
+    if (markProjectContentChanged(tab) && !projectToolsBackdrop.classList.contains('hidden') && !document.getElementById('projectIdsPane').hidden) renderProjectIdCatalog();
+    scheduleRecoveryDraft();
+    renderTabs();
+    schedulePersistTabs();
   }
 
   function rememberActiveView(){
     if (document.activeElement !== editor) return;
     syncActiveTab();
+    schedulePersistTabs();
+    updateCursorInfo();
+  }
+
+  function rememberSplitView(){
+    if (document.activeElement !== splitEditor) return;
+    syncSplitTab();
     schedulePersistTabs();
     updateCursorInfo();
   }
@@ -2179,7 +2389,7 @@
     const newButton = document.getElementById('newTabBtn');
     tabs.forEach(tab => {
       const node = document.createElement('div');
-      node.className = `tab${tab.id === activeTabId ? ' active' : ''}`;
+      node.className = `tab${tab.id === activeTabId ? ' active' : ''}${tab.id === splitTabId ? ' split-target' : ''}`;
       node.dataset.tabId = String(tab.id);
       node.tabIndex = 0;
       node.setAttribute('role', 'button');
@@ -2188,6 +2398,7 @@
       name.className = 'tab-name';
       name.textContent = `${tab.dirty ? '• ' : ''}${tab.externalChanged ? '↻ ' : ''}${tab.name}`;
       if (tab.externalChanged) name.title = 'This file changed outside the editor';
+      else if (tab.id === splitTabId) name.title = 'Shown in the second editor pane';
       const filter = tabFilter.value.trim().toLowerCase();
       node.classList.toggle('tab-hidden', Boolean(filter) && !tab.name.toLowerCase().includes(filter));
       const close = document.createElement('button');
@@ -2228,6 +2439,7 @@
       tabsView.insertBefore(node, newButton);
     });
     renderCompareOptions();
+    if (!splitEditorColumn.hidden) renderSplitTabOptions();
     tabsView.classList.toggle('tab-filtering', Boolean(tabFilter.value.trim()));
     updateRestoreBackupButton();
     updateExternalChangeControl();
@@ -2247,6 +2459,7 @@
 
   function closeOtherTabs(){
     syncActiveTab();
+    closeSplitEditor();
     const others = tabs.filter(tab => tab.id !== activeTabId && (!tab.dirty || !settings.confirmClose || window.confirm(`Close ${tab.name} without saving?`)));
     others.forEach(removeRecoveryForTab);
     tabs = tabs.filter(tab => tab.id === activeTabId || !others.includes(tab));
@@ -2259,6 +2472,12 @@
     const dirty = tabs.filter(tab => tab.dirty);
     if (settings.confirmClose && dirty.length && !window.confirm(`Close ${dirty.length} modified tab${dirty.length === 1 ? '' : 's'} without saving?`)) return;
     clearRecoveryData();
+    splitTabId = null;
+    splitEditorColumn.hidden = true;
+    splitResizeHandle.hidden = true;
+    editorPanes.classList.remove('split-active');
+    splitEditorBtn.textContent = 'Split editor';
+    lastFocusedEditorPane = 'main';
     tabs = [{ id: 1, storageId: createStorageId(), name: 'untitled.json', filePath: null, text: '', savedText: '', dirty: false, scrollTop: 0, scrollLeft: 0, selectionStart: 0, selectionEnd: 0 }];
     activeTabId = 1;
     nextTabId = 2;
@@ -2507,6 +2726,7 @@
 
   function toggleCompare(){
     if (compareBtn.disabled) return;
+    if (!layout.classList.contains('compare-active') && !splitEditorColumn.hidden) closeSplitEditor();
     layout.classList.toggle('compare-active');
     const active = layout.classList.contains('compare-active');
     compareBtn.textContent = active ? 'Close compare' : 'Compare tabs';
@@ -2514,16 +2734,19 @@
   }
 
   function switchTab(id){
-    if (id === activeTabId) return;
+    if (id === activeTabId) { lastFocusedEditorPane = 'main'; editor.focus(); return; }
     syncActiveTab();
     const tab = tabs.find(item => item.id === id);
     if (!tab) return;
+    const previousActiveId = activeTabId;
+    if (splitTabId === id) splitTabId = previousActiveId;
     activeTabId = id;
     const wasDirty = tab.dirty;
     const savedView = { ...tab };
     setEditorContent(tab.text, tab.name, Boolean(tab.text.trim()), true);
     tab.dirty = wasDirty;
     restoreTabView(tab, savedView);
+    if (splitTabId !== null && !splitEditorColumn.hidden) loadSplitTab(splitTab());
     renderTabs();
     renderProjects();
     resetSearch();
@@ -2547,6 +2770,7 @@
   function closeTab(id){
     const closingTab = tabs.find(tab => tab.id === id);
     if (closingTab && closingTab.dirty && settings.confirmClose && !window.confirm(`Close ${closingTab.name} without saving?`)) return;
+    if (id === splitTabId && id !== activeTabId) closeSplitEditor();
     removeRecoveryForTab(closingTab);
     if (tabs.length === 1) {
       tabs[0].text = '';
@@ -2566,6 +2790,7 @@
       tabs = tabs.filter(tab => tab.id !== id);
       if (id === activeTabId) {
         const replacement = tabs[Math.max(0, index - 1)] || tabs[0];
+        if (replacement.id === splitTabId) closeSplitEditor();
         activeTabId = replacement.id;
         const wasDirty = replacement.dirty;
         const savedView = { ...replacement };
@@ -2606,12 +2831,12 @@
     return wrapMeasure;
   }
 
-  function configureWrapMeasure(){
+  function configureWrapMeasure(targetEditor = editor){
     const measure = getWrapMeasure();
-    const styles = getComputedStyle(editor);
+    const styles = getComputedStyle(targetEditor);
     const paddingLeft = parseFloat(styles.paddingLeft) || 0;
     const paddingRight = parseFloat(styles.paddingRight) || 0;
-    measure.style.width = `${Math.max(1, editor.clientWidth - paddingLeft - paddingRight)}px`;
+    measure.style.width = `${Math.max(1, targetEditor.clientWidth - paddingLeft - paddingRight)}px`;
     measure.style.font = styles.font;
     measure.style.fontSize = styles.fontSize;
     measure.style.fontFamily = styles.fontFamily;
@@ -2623,9 +2848,9 @@
     return measure;
   }
 
-  function measureWrappedRows(textValue, measure = configureWrapMeasure()){
+  function measureWrappedRows(textValue, measure = configureWrapMeasure(), targetEditor = editor){
     measure.textContent = textValue || ' ';
-    const lineHeight = parseFloat(getComputedStyle(editor).lineHeight) || 21.7;
+    const lineHeight = parseFloat(getComputedStyle(targetEditor).lineHeight) || 21.7;
     const height = measure.getBoundingClientRect().height || lineHeight;
     return Math.max(1, Math.round(height / lineHeight));
   }
@@ -2820,16 +3045,27 @@
   }
 
   function renderSearchHighlights(matches){
-    if (!matches.length || performanceMode === 'huge' || editor.value.length > MAX_SEARCH_HIGHLIGHT_CHARS) {
+    const cursorRanges = multiCursorSelections.filter(range => range && Number.isInteger(range.start) && Number.isInteger(range.end));
+    if ((!matches.length && !cursorRanges.length) || performanceMode === 'huge' || editor.value.length > MAX_SEARCH_HIGHLIGHT_CHARS) {
       regexHighlights.textContent = '';
       return;
     }
+    const overlays = [
+      ...matches.map(range => ({ ...range, kind: 'search' })),
+      ...cursorRanges.map(range => ({ ...range, kind: 'multi' }))
+    ].sort((left, right) => left.start - right.start || (left.kind === right.kind ? right.end - left.end : (left.kind === 'multi' ? -1 : 1)));
     let output = '';
     let cursor = 0;
-    for (const match of matches) {
-      output += escapeHtml(editor.value.slice(cursor, match.start));
-      output += `<mark>${escapeHtml(editor.value.slice(match.start, match.end))}</mark>`;
-      cursor = match.end;
+    for (const range of overlays) {
+      if (range.start < cursor) continue;
+      output += escapeHtml(editor.value.slice(cursor, range.start));
+      if (range.kind === 'multi' && range.start === range.end) {
+        output += '<span class="multi-cursor-caret">&#8203;</span>';
+      } else {
+        const kind = range.kind === 'multi' ? ' class="multi-cursor-selection"' : '';
+        output += `<mark${kind}>${escapeHtml(editor.value.slice(range.start, range.end))}</mark>`;
+      }
+      cursor = range.end;
     }
     regexHighlights.innerHTML = output + escapeHtml(editor.value.slice(cursor)) + '\n';
   }
@@ -2840,7 +3076,7 @@
       searchCountKey = getSearchCountKey();
       searchMatchTotal = null;
       currentSearchOrdinal = null;
-      regexHighlights.textContent = '';
+      renderSearchHighlights([]);
       searchStatus.textContent = 'No search';
       return [];
     }
@@ -4268,6 +4504,8 @@
   }
 
   function setEditorContent(textValue, filename, autoValidate = true, preserveSavedState = false, filePath = undefined){
+    clearMultiCursorSelections(false);
+    lastFocusedEditorPane = 'main';
     editor.value = textValue;
     markSearchDocumentChanged();
     currentFileName = filename;
@@ -5368,14 +5606,165 @@
     } catch (error) { setStatus(error?.message || 'Could not copy JSON Pointer', 'err'); }
   }
 
+  function renderMultiCursorHighlights(){
+    if (document.activeElement === splitEditor) {
+      splitEditorWrap.classList.toggle('multi-cursor-active', multiCursorSelections.length > 1);
+      const text = splitEditor.value;
+      let html = '';
+      let cursor = 0;
+      for (const range of multiCursorSelections.slice().sort((a, b) => a.start - b.start)) {
+        html += escapeHtml(text.slice(cursor, range.start));
+        if (range.end > range.start) html += `<mark class="multi-cursor-selection">${escapeHtml(text.slice(range.start, range.end))}</mark>`;
+        else html += '<span class="multi-cursor-caret">&#8203;</span>';
+        cursor = range.end;
+      }
+      splitHighlighted.innerHTML = html + escapeHtml(text.slice(cursor)) + '\n';
+      return;
+    }
+    editorWrap.classList.toggle('multi-cursor-active', multiCursorSelections.length > 1);
+    const matches = findSearchMatches();
+    renderSearchHighlights(matches);
+  }
+
+  function clearMultiCursorSelections(refresh = true){
+    if (!multiCursorSelections.length) return;
+    multiCursorSelections = [];
+    editorWrap.classList.remove('multi-cursor-active');
+    splitEditorWrap.classList.remove('multi-cursor-active');
+    if (refresh) {
+      renderMultiCursorHighlights();
+      updateCursorInfo();
+    }
+  }
+
+  function addNextCursorOccurrence(){
+    const cursorEditor = document.activeElement === splitEditor ? splitEditor : editor;
+    const text = cursorEditor.value;
+    let start = cursorEditor.selectionStart || 0;
+    let end = cursorEditor.selectionEnd || start;
+    if (multiCursorSelections.length) {
+      const current = multiCursorSelections[multiCursorSelections.length - 1];
+      if (current.end > current.start) { start = current.start; end = current.end; }
+    }
+    if (start === end) {
+      const wordChar = character => Boolean(character && /[A-Za-z0-9_.:-]/.test(character));
+      while (wordChar(text[start - 1])) start -= 1;
+      end = start;
+      while (wordChar(text[end])) end += 1;
+    }
+    const query = text.slice(start, end);
+    if (!query) { setStatus('Select text or place the cursor on a word to add matching cursors', 'warn'); return; }
+    if (!multiCursorSelections.length) multiCursorSelections = [{ start, end }];
+    if (multiCursorSelections.length >= 200) { setStatus('Multi-cursor selection is limited to 200 occurrences', 'warn'); return; }
+    let next = text.indexOf(query, end);
+    if (next < 0) next = text.indexOf(query, 0);
+    while (next >= 0 && multiCursorSelections.some(range => next < range.end && next + query.length > range.start)) {
+      next = text.indexOf(query, next + 1);
+    }
+    if (next < 0) { setStatus(`No more exact matches for “${query}”`, 'warn'); return; }
+    multiCursorSelections.push({ start: next, end: next + query.length });
+    cursorEditor.focus();
+    cursorEditor.setSelectionRange(next, next + query.length);
+    renderMultiCursorHighlights();
+    updateCursorInfo();
+    setStatus(`${multiCursorSelections.length} matching selections · type to edit them together`, 'ok');
+  }
+
+  function commitMultiCursorEdits(edits){
+    if (!Array.isArray(edits) || !edits.length) return false;
+    const cursorEditor = document.activeElement === splitEditor ? splitEditor : editor;
+    const before = cursorEditor.value;
+    const beforeSelections = multiCursorSelections.map(range => ({ ...range }));
+    const sorted = edits.slice().sort((left, right) => left.start - right.start || left.end - right.end);
+    let offsetDelta = 0;
+    const nextSelections = sorted.map(edit => {
+      const adjustedStart = edit.start + offsetDelta;
+      offsetDelta += edit.text.length - (edit.end - edit.start);
+      const caret = adjustedStart + edit.text.length;
+      return { start: caret, end: caret };
+    });
+    let updated = before;
+    for (const edit of sorted.slice().reverse()) updated = updated.slice(0, edit.start) + edit.text + updated.slice(edit.end);
+    multiCursorUndoStack.push({ tabId: cursorEditor === splitEditor ? splitTabId : activeTabId, before, after: updated, beforeSelections, afterSelections: nextSelections.map(range => ({ ...range })) });
+    if (multiCursorUndoStack.length > 80) multiCursorUndoStack.shift();
+    multiCursorRedoStack = [];
+    cursorEditor.value = updated;
+    multiCursorSelections = nextSelections;
+    const activeCursor = multiCursorSelections[multiCursorSelections.length - 1];
+    cursorEditor.setSelectionRange(activeCursor.start, activeCursor.end);
+    applyingMultiCursorEdit = true;
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    applyingMultiCursorEdit = false;
+    return true;
+  }
+
+  function applyMultiCursorInput(event, pastedText = undefined){
+    if (multiCursorSelections.length < 2 || !event.cancelable) return false;
+    const cursorEditor = document.activeElement === splitEditor ? splitEditor : editor;
+    const inputType = event.inputType || '';
+    let insertion = typeof pastedText === 'string' ? pastedText : (typeof event.data === 'string' ? event.data : null);
+    if (inputType === 'insertLineBreak' || inputType === 'insertParagraph') insertion = '\n';
+    if (inputType.startsWith('insert') && insertion === null) return false;
+    const edits = multiCursorSelections.map(range => {
+      let start = range.start;
+      let end = range.end;
+      if (inputType === 'deleteContentBackward' && start === end) start = Math.max(0, start - 1);
+      else if (inputType === 'deleteContentForward' && start === end) end = Math.min(cursorEditor.value.length, end + 1);
+      else if (inputType === 'deleteWordBackward' && start === end) {
+        const prefix = cursorEditor.value.slice(0, start);
+        start = prefix.search(/\s*[^\s]+\s*$/);
+        if (start < 0) start = 0;
+      } else if (inputType === 'deleteWordForward' && start === end) {
+        const suffix = cursorEditor.value.slice(end);
+        const match = suffix.match(/^\s*[^\s]+\s*/);
+        if (match) end += match[0].length;
+      }
+      return { start, end, text: inputType.startsWith('delete') ? '' : insertion };
+    });
+    if (!edits.some(edit => edit.start !== edit.end || edit.text)) return false;
+    event.preventDefault();
+    return commitMultiCursorEdits(edits);
+  }
+
+  function applyMultiCursorHistory(direction){
+    const cursorEditor = document.activeElement === splitEditor ? splitEditor : editor;
+    const cursorTabId = cursorEditor === splitEditor ? splitTabId : activeTabId;
+    const source = direction === 'undo' ? multiCursorUndoStack : multiCursorRedoStack;
+    const destination = direction === 'undo' ? multiCursorRedoStack : multiCursorUndoStack;
+    const edit = source[source.length - 1];
+    if (!edit || edit.tabId !== cursorTabId || cursorEditor.value !== (direction === 'undo' ? edit.after : edit.before)) return false;
+    source.pop();
+    destination.push(edit);
+    cursorEditor.value = direction === 'undo' ? edit.before : edit.after;
+    multiCursorSelections = (direction === 'undo' ? edit.beforeSelections : edit.afterSelections).map(range => ({ ...range }));
+    const activeCursor = multiCursorSelections[multiCursorSelections.length - 1];
+    if (activeCursor) cursorEditor.setSelectionRange(activeCursor.start, activeCursor.end);
+    applyingMultiCursorEdit = true;
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    applyingMultiCursorEdit = false;
+    return true;
+  }
+
   function updateCursorInfo(){
-    const pos = editor.selectionStart || 0;
-    const before = editor.value.slice(0, pos);
+    const cursorEditor = document.activeElement === splitEditor ? splitEditor : editor;
+    const pos = cursorEditor.selectionStart || 0;
+    const before = cursorEditor.value.slice(0, pos);
     const lines = before.split('\n');
     const line = lines.length;
     const col = lines[lines.length - 1].length + 1;
-    cursorPosition.textContent = `Line ${line}, Column ${col}`;
-    updateJsonPointer();
+    cursorPosition.textContent = `Line ${line}, Column ${col}${multiCursorSelections.length > 1 ? ` · ${multiCursorSelections.length} cursors` : ''}`;
+    if (cursorEditor === editor) updateJsonPointer();
+  }
+
+  function handleMultiCursorKeydown(event){
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'd') {
+      event.preventDefault(); addNextCursorOccurrence(); return true;
+    }
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'z' && applyMultiCursorHistory('undo')) { event.preventDefault(); return true; }
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && (event.key.toLowerCase() === 'y' || (event.shiftKey && event.key.toLowerCase() === 'z')) && applyMultiCursorHistory('redo')) { event.preventDefault(); return true; }
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) clearMultiCursorSelections();
+    if (event.key === 'Escape') clearMultiCursorSelections();
+    return false;
   }
 
   function runCDDAValidation(){
@@ -5689,6 +6078,53 @@
     readCancelled = false;
   }
 
+  async function openFilesFromPathsNow(filePaths){
+    const paths = Array.isArray(filePaths)
+      ? [...new Set(filePaths.filter(filePath => typeof filePath === 'string' && /\.json$/i.test(filePath)))]
+      : [];
+    const errors = [];
+    for (const filePath of paths) {
+      const existingTab = tabs.find(tab => tab.filePath && tab.filePath.toLowerCase() === filePath.toLowerCase());
+      if (existingTab) {
+        switchTab(existingTab.id);
+        continue;
+      }
+      try {
+        setStatus(`Reading ${filePath.split(/[\\/]/).pop()}…`, 'warn');
+        const result = await window.cddaDesktop?.readTextFile?.(filePath);
+        if (!result?.ok) throw new Error(result?.error || 'Unable to read this file');
+        const fileName = filePath.split(/[\\/]/).pop() || 'opened.json';
+        let tab;
+        if (editor.value.trim() || activeTab()?.dirty || activeTab()?.filePath) {
+          tab = newTab(fileName, result.text || '', filePath);
+        } else {
+          tab = activeTab();
+          tab.name = fileName;
+          tab.filePath = filePath;
+          tab.text = result.text || '';
+          tab.savedText = tab.text;
+          tab.dirty = false;
+          setEditorContent(tab.text, fileName, true, false, filePath);
+        }
+        if (tab) tab.fingerprint = result.fingerprint || null;
+        rememberRecentFile(filePath, fileName);
+        updateExternalChangeControl();
+      } catch (error) {
+        errors.push(`${filePath.split(/[\\/]/).pop()}: ${error?.message || 'Unable to open file'}`);
+      }
+    }
+    if (paths.length && !errors.length) setStatus(`${paths.length} JSON file${paths.length === 1 ? '' : 's'} opened`, 'ok');
+    else if (errors.length) setStatus(`Could not open ${errors.length} JSON file${errors.length === 1 ? '' : 's'}: ${errors.slice(0, 2).join('; ')}`, 'err');
+    schedulePersistTabs();
+  }
+
+  let nativeFileOpenQueue = Promise.resolve();
+  function openFilesFromPaths(filePaths){
+    nativeFileOpenQueue = nativeFileOpenQueue
+      .then(() => openFilesFromPathsNow(filePaths))
+      .catch(error => setStatus(error?.message || 'Could not open the selected JSON file', 'err'));
+  }
+
   function getPathForFile(file){
     try {
       if (window.cddaDesktop && typeof window.cddaDesktop.getPathForFile === 'function') {
@@ -5993,7 +6429,7 @@
       : 'No folders';
 
     if (!projects.length) {
-      projectsView.innerHTML = '<div class="help">Open a folder to browse its JSON files. Use Search files to find text across the rest of the project too.</div>';
+      projectsView.innerHTML = '<div class="help">Open a folder to browse its JSON files. Use Project tools for search, validation, Git changes, and more.</div>';
       return;
     }
 
@@ -6570,8 +7006,125 @@
     if (folders.has(selected)) projectFolderFilter.value = selected;
   }
 
+  function refreshGitProjectOptions(){
+    const selectedRoot = gitProjectSelect.value || gitCurrentRoot;
+    gitProjectSelect.innerHTML = '<option value="">Choose an opened folder…</option>';
+    projects.filter(project => project.rootPath).forEach(project => {
+      const option = document.createElement('option');
+      option.value = project.rootPath;
+      option.textContent = project.name;
+      option.title = project.rootPath;
+      gitProjectSelect.appendChild(option);
+    });
+    if (projects.some(project => project.rootPath === selectedRoot)) gitProjectSelect.value = selectedRoot;
+    const canUseGit = Boolean(gitProjectSelect.value && window.cddaDesktop?.getGitReviewStatus);
+    document.getElementById('refreshGitReviewBtn').disabled = !canUseGit;
+    document.getElementById('stageAllGitChangesBtn').disabled = !canUseGit || !gitChangedFiles.length;
+    document.getElementById('commitGitChangesBtn').disabled = !canUseGit || !gitChangedFiles.some(file => file.staged);
+    document.getElementById('unstageAllGitChangesBtn').disabled = !canUseGit || !gitChangedFiles.some(file => file.staged);
+  }
+
+  async function showGitReviewDiff(staged = false){
+    if (!gitCurrentRoot || !gitSelectedPath || !window.cddaDesktop?.getGitReviewDiff) return;
+    const result = await window.cddaDesktop.getGitReviewDiff({ rootPath: gitCurrentRoot, filePath: gitSelectedPath, staged });
+    if (!result?.ok) {
+      gitReviewDiff.textContent = result?.error || 'Could not load this Git diff.';
+      return;
+    }
+    gitReviewDiff.textContent = result.diff || 'No differences in this view.';
+    gitDiffTitle.textContent = `${gitSelectedPath} · ${result.kind === 'untracked' ? 'untracked file preview' : (staged ? 'staged changes' : 'working-tree changes')}`;
+  }
+
+  function renderGitChangeFiles(){
+    gitReviewFiles.replaceChildren();
+    if (!gitChangedFiles.length) {
+      const empty = document.createElement('div');
+      empty.className = 'help';
+      empty.textContent = gitCurrentRoot ? `Working tree clean · ${gitCurrentBranch || 'current branch'}` : 'Choose a project folder to review its Git changes.';
+      gitReviewFiles.appendChild(empty);
+      refreshGitProjectOptions();
+      return;
+    }
+    gitChangedFiles.forEach(file => {
+      const row = document.createElement('div');
+      row.className = `git-review-file${file.path === gitSelectedPath ? ' selected' : ''}`;
+      const code = document.createElement('span');
+      code.className = 'git-review-code';
+      code.textContent = file.code;
+      const pathButton = document.createElement('button');
+      pathButton.type = 'button';
+      pathButton.className = 'git-review-file-path btn';
+      pathButton.textContent = file.path;
+      pathButton.title = file.path;
+      pathButton.addEventListener('click', () => {
+        gitSelectedPath = file.path;
+        renderGitChangeFiles();
+        showGitReviewDiff(false);
+      });
+      const stageButton = document.createElement('button');
+      stageButton.type = 'button';
+      stageButton.className = 'btn';
+      stageButton.textContent = file.staged ? 'Unstage' : 'Stage';
+      stageButton.title = file.staged ? 'Remove this file’s changes from the Git index' : 'Stage this file for the next commit';
+      stageButton.addEventListener('click', () => file.staged ? unstageGitReviewFile(file.path) : stageGitReviewFile(file.path));
+      const state = document.createElement('span');
+      state.className = 'compare-info';
+      state.textContent = file.untracked ? 'new' : (file.deleted ? 'deleted' : (file.renamed ? 'renamed' : ''));
+      row.append(code, pathButton, stageButton, state);
+      gitReviewFiles.appendChild(row);
+    });
+    refreshGitProjectOptions();
+    document.getElementById('gitDiffWorkingBtn').disabled = !gitSelectedPath;
+    document.getElementById('gitDiffStagedBtn').disabled = !gitSelectedPath || !gitChangedFiles.some(file => file.path === gitSelectedPath && file.staged);
+  }
+
+  async function refreshGitReview(){
+    const rootPath = gitProjectSelect.value;
+    gitCurrentRoot = rootPath;
+    gitSelectedPath = '';
+    gitChangedFiles = [];
+    if (!rootPath || !window.cddaDesktop?.getGitReviewStatus) {
+      gitReviewStatus.textContent = rootPath ? 'Git change review requires the desktop app.' : 'Open a project folder, then choose it here.';
+      gitReviewDiff.textContent = 'Git diffs will appear here.';
+      renderGitChangeFiles();
+      return;
+    }
+    gitReviewStatus.textContent = 'Checking Git status…';
+    gitReviewFiles.innerHTML = '<div class="help">Checking working tree…</div>';
+    const result = await window.cddaDesktop.getGitReviewStatus(rootPath);
+    if (!result?.ok) {
+      gitReviewStatus.textContent = result?.error || 'Could not read Git status.';
+      gitReviewDiff.textContent = gitReviewStatus.textContent;
+      renderGitChangeFiles();
+      return;
+    }
+    gitCurrentRoot = result.root;
+    gitCurrentBranch = result.branch;
+    gitChangedFiles = result.files || [];
+    gitReviewStatus.textContent = `${gitCurrentBranch} · ${gitChangedFiles.length} changed file${gitChangedFiles.length === 1 ? '' : 's'} · disk state only`;
+    gitSelectedPath = gitChangedFiles[0]?.path || '';
+    renderGitChangeFiles();
+    if (gitSelectedPath) await showGitReviewDiff(false);
+    else {
+      gitReviewDiff.textContent = 'No uncommitted changes in this project.';
+      gitDiffTitle.textContent = 'Working tree clean';
+    }
+  }
+
+  async function stageGitReviewFile(filePath){
+    const result = await window.cddaDesktop?.stageGitReviewFile?.({ rootPath: gitCurrentRoot, filePath });
+    if (!result?.ok) { gitReviewStatus.textContent = result?.error || 'Could not stage this file.'; return; }
+    await refreshGitReview();
+  }
+
+  async function unstageGitReviewFile(filePath){
+    const result = await window.cddaDesktop?.unstageGitReviewFile?.({ rootPath: gitCurrentRoot, filePath });
+    if (!result?.ok) { gitReviewStatus.textContent = result?.error || 'Could not unstage this file.'; return; }
+    await refreshGitReview();
+  }
+
   function setProjectToolsMode(mode){
-    const panes = { validate: 'projectValidatePane', search: 'projectSearchPane', references: 'projectReferencesPane', dependencies: 'projectDependenciesPane', ids: 'projectIdsPane', inheritance: 'projectInheritancePane', refactor: 'projectRefactorPane', conflicts: 'projectConflictsPane', semantic: 'projectSemanticPane', unused: 'projectUnusedPane', dashboard: 'projectDashboardPane', staged: 'projectStagedPane', snapshotDiff: 'projectSnapshotDiffPane', workspaces: 'projectWorkspacesPane', customRules: 'projectCustomRulesPane', jsonPath: 'projectJsonPathPane', vanilla: 'projectVanillaPane' };
+    const panes = { validate: 'projectValidatePane', search: 'projectSearchPane', references: 'projectReferencesPane', dependencies: 'projectDependenciesPane', ids: 'projectIdsPane', inheritance: 'projectInheritancePane', refactor: 'projectRefactorPane', conflicts: 'projectConflictsPane', semantic: 'projectSemanticPane', unused: 'projectUnusedPane', dashboard: 'projectDashboardPane', staged: 'projectStagedPane', snapshotDiff: 'projectSnapshotDiffPane', workspaces: 'projectWorkspacesPane', customRules: 'projectCustomRulesPane', jsonPath: 'projectJsonPathPane', vanilla: 'projectVanillaPane', git: 'projectGitPane' };
     Object.entries(panes).forEach(([key, id]) => {
       document.getElementById(id).hidden = key !== mode;
       const button = projectToolsBackdrop.querySelector(`[data-project-mode="${key}"]`);
@@ -6586,6 +7139,7 @@
     if (mode === 'customRules') renderCustomRuleList();
     if (mode === 'jsonPath') renderSavedJsonPathQueries();
     if (mode === 'vanilla') refreshVanillaCompareControls();
+    if (mode === 'git') { refreshGitProjectOptions(); if (gitProjectSelect.value) refreshGitReview(); }
   }
 
   function openProjectTools(mode = 'validate', reference = ''){
@@ -6611,6 +7165,7 @@
     else if (mode === 'customRules') document.getElementById('customRuleName').focus();
     else if (mode === 'jsonPath') document.getElementById('jsonPathQuery').focus();
     else if (mode === 'vanilla') document.getElementById('vanillaId').focus();
+    else if (mode === 'git') refreshGitProjectOptions();
     else document.getElementById('runProjectValidationBtn').focus();
   }
 
@@ -10969,16 +11524,20 @@
   }
 
   async function saveFile(){
+    const savingSplitTab = document.activeElement === splitEditor || (lastFocusedEditorPane === 'split' && !splitEditorColumn.hidden);
     syncActiveTab();
-    const tab = activeTab();
+    const tab = savingSplitTab ? splitTab() : activeTab();
     if (!tab) return false;
-    const saved = await saveTab(tab, editor.value);
+    const saved = await saveTab(tab, savingSplitTab ? splitEditor.value : editor.value);
     if (!saved) return false;
-    currentFileName = tab.name;
-    fileBadge.textContent = currentFileName;
+    if (savingSplitTab) refreshSplitEditorView();
+    else {
+      currentFileName = tab.name;
+      fileBadge.textContent = currentFileName;
+    }
     renderTabs();
     schedulePersistTabs();
-    setStatus('Saved', 'ok');
+    setStatus(`Saved ${tab.name}`, 'ok');
     return true;
   }
 
@@ -11066,8 +11625,35 @@
     openProjectTools('validate');
     runWholeProjectValidation();
   });
-  document.getElementById('searchProjectBtn').addEventListener('click', () => openProjectTools('search'));
+  document.getElementById('projectToolsOpenBtn').addEventListener('click', () => openProjectTools());
   projectToolsBackdrop.querySelectorAll('[data-project-mode]').forEach(button => button.addEventListener('click', () => setProjectToolsMode(button.dataset.projectMode)));
+  gitProjectSelect.addEventListener('change', refreshGitReview);
+  document.getElementById('refreshGitReviewBtn').addEventListener('click', refreshGitReview);
+  document.getElementById('gitDiffWorkingBtn').addEventListener('click', () => showGitReviewDiff(false));
+  document.getElementById('gitDiffStagedBtn').addEventListener('click', () => showGitReviewDiff(true));
+  document.getElementById('stageAllGitChangesBtn').addEventListener('click', async () => {
+    const result = await window.cddaDesktop?.stageGitReviewFile?.({ rootPath: gitCurrentRoot, all: true });
+    if (!result?.ok) { gitReviewStatus.textContent = result?.error || 'Could not stage all changes.'; return; }
+    await refreshGitReview();
+  });
+  document.getElementById('unstageAllGitChangesBtn').addEventListener('click', async () => {
+    const stagedPaths = gitChangedFiles.filter(file => file.staged).map(file => file.path);
+    for (const filePath of stagedPaths) {
+      const result = await window.cddaDesktop?.unstageGitReviewFile?.({ rootPath: gitCurrentRoot, filePath });
+      if (!result?.ok) { gitReviewStatus.textContent = result?.error || `Could not unstage ${filePath}.`; return; }
+    }
+    await refreshGitReview();
+  });
+  document.getElementById('commitGitChangesBtn').addEventListener('click', async () => {
+    const message = gitCommitMessage.value.trim();
+    if (!gitCurrentRoot || !message) { gitReviewStatus.textContent = 'Enter a commit message for the staged files.'; gitCommitMessage.focus(); return; }
+    if (!window.confirm(`Commit staged changes in ${gitCurrentBranch || 'this project'}?`)) return;
+    const result = await window.cddaDesktop?.commitGitReviewChanges?.({ rootPath: gitCurrentRoot, message });
+    if (!result?.ok) { gitReviewStatus.textContent = result?.error || 'Could not commit staged changes.'; return; }
+    gitCommitMessage.value = '';
+    await refreshGitReview();
+    gitReviewStatus.textContent = `Commit created · ${gitCurrentBranch}`;
+  });
   document.getElementById('projectToolsCloseBtn').addEventListener('click', closeProjectTools);
   projectToolsBackdrop.addEventListener('click', event => { if (event.target === projectToolsBackdrop) closeProjectTools(); });
   document.getElementById('saveWorkspacePresetBtn').addEventListener('click', saveWorkspacePreset);
@@ -11215,6 +11801,19 @@
     setStatus('Settings applied', 'ok');
   });
   document.getElementById('settingsResetBtn').addEventListener('click', () => fillSettingsControls(DEFAULT_SETTINGS));
+  document.getElementById('setJsonDefaultBtn').addEventListener('click', async () => {
+    const button = document.getElementById('setJsonDefaultBtn');
+    button.disabled = true;
+    try {
+      const result = await window.cddaDesktop?.registerJsonOpenWith?.();
+      if (result?.ok) setStatus('In Windows Default apps, choose CDDA JSON Editor for .json files', 'ok');
+      else setStatus(result?.error || 'Default-app registration is only available in the desktop app', 'err');
+    } catch (error) {
+      setStatus(error?.message || 'Could not open Windows Default apps', 'err');
+    } finally {
+      button.disabled = false;
+    }
+  });
   clearLearnedCodeSuggestionsBtn.addEventListener('click', clearLearnedCodeSuggestionRanking);
   settingsBackdrop.addEventListener('click', event => {
     if (event.target === settingsBackdrop) closeSettings();
@@ -11266,7 +11865,114 @@
   caseToggle.addEventListener('change', resetSearch);
   wholeWordToggle.addEventListener('change', resetSearch);
 
+  editor.addEventListener('beforeinput', event => applyMultiCursorInput(event));
+  splitEditor.addEventListener('beforeinput', event => applyMultiCursorInput(event));
+  splitEditor.addEventListener('paste', event => {
+    if (multiCursorSelections.length < 2) return;
+    const pastedText = event.clipboardData?.getData('text/plain');
+    if (typeof pastedText !== 'string') return;
+    event.preventDefault();
+    commitMultiCursorEdits(multiCursorSelections.map(range => ({ ...range, text: pastedText })));
+  });
+  splitEditor.addEventListener('cut', event => {
+    if (multiCursorSelections.length < 2) return;
+    const selectedText = multiCursorSelections.filter(range => range.end > range.start).map(range => splitEditor.value.slice(range.start, range.end));
+    if (!selectedText.length) return;
+    event.preventDefault();
+    event.clipboardData?.setData('text/plain', selectedText.join('\n'));
+    commitMultiCursorEdits(multiCursorSelections.map(range => ({ ...range, text: '' })));
+  });
+  splitEditor.addEventListener('input', handleSplitEditorInput);
+  splitEditor.addEventListener('scroll', () => {
+    splitHighlighted.scrollTop = splitEditor.scrollTop;
+    splitHighlighted.scrollLeft = splitEditor.scrollLeft;
+    splitLineNumbers.scrollTop = splitEditor.scrollTop;
+    syncSplitTab();
+    schedulePersistTabs();
+  });
+  splitEditor.addEventListener('focus', () => { lastFocusedEditorPane = 'split'; clearMultiCursorSelections(); updateCursorInfo(); });
+  splitEditor.addEventListener('mousedown', () => clearMultiCursorSelections());
+  splitEditor.addEventListener('click', updateCursorInfo);
+  splitEditor.addEventListener('keyup', rememberSplitView);
+  splitEditor.addEventListener('select', rememberSplitView);
+  splitEditor.addEventListener('keydown', event => {
+    if (handleMultiCursorKeydown(event)) return;
+    const closingBracket = event.key === '[' ? ']' : event.key === '{' ? '}' : '';
+    if (closingBracket && splitEditor.selectionStart !== splitEditor.selectionEnd) {
+      event.preventDefault();
+      const ranges = multiCursorSelections.length > 1 ? multiCursorSelections : [{ start: splitEditor.selectionStart, end: splitEditor.selectionEnd }];
+      commitMultiCursorEdits(ranges.map(range => ({ ...range, text: `${event.key}${splitEditor.value.slice(range.start, range.end)}${closingBracket}` })));
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      if (event.shiftKey) saveAllFiles(); else saveFile();
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === 's') {
+      event.preventDefault(); saveFile(); return;
+    }
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      const start = splitEditor.selectionStart;
+      const end = splitEditor.selectionEnd;
+      const indentation = ' '.repeat(settings.tabSize);
+      splitEditor.setRangeText(indentation, start, end, 'end');
+      handleSplitEditorInput();
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'w') {
+      event.preventDefault(); closeTab(splitTabId);
+    }
+  });
+  splitEditorBtn.addEventListener('click', openSplitEditor);
+  document.getElementById('closeSplitEditorBtn').addEventListener('click', closeSplitEditor);
+  splitTabSelect.addEventListener('change', () => {
+    syncSplitTab();
+    const target = tabs.find(tab => tab.id === Number(splitTabSelect.value) && tab.id !== activeTabId);
+    if (target) { loadSplitTab(target); renderTabs(); }
+  });
+  splitResizeHandle.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    splitResizeHandle.classList.add('dragging');
+    splitResizeHandle.setPointerCapture(event.pointerId);
+  });
+  splitResizeHandle.addEventListener('pointermove', event => {
+    if (!splitResizeHandle.hasPointerCapture(event.pointerId)) return;
+    const bounds = editorPanes.getBoundingClientRect();
+    if (!bounds.width) return;
+    splitMainWidth = Math.max(22, Math.min(78, ((event.clientX - bounds.left - 3.5) / Math.max(1, bounds.width - 7)) * 100));
+    editorPanes.style.setProperty('--split-main-width', `${splitMainWidth}%`);
+  });
+  const releaseSplitResize = event => {
+    splitResizeHandle.classList.remove('dragging');
+    if (splitResizeHandle.hasPointerCapture(event.pointerId)) splitResizeHandle.releasePointerCapture(event.pointerId);
+  };
+  splitResizeHandle.addEventListener('pointerup', releaseSplitResize);
+  splitResizeHandle.addEventListener('pointercancel', releaseSplitResize);
+  splitResizeHandle.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    splitMainWidth = Math.max(22, Math.min(78, splitMainWidth + (event.key === 'ArrowRight' ? 2 : -2)));
+    editorPanes.style.setProperty('--split-main-width', `${splitMainWidth}%`);
+  });
+  editor.addEventListener('paste', event => {
+    if (multiCursorSelections.length < 2) return;
+    const pastedText = event.clipboardData?.getData('text/plain');
+    if (typeof pastedText !== 'string') return;
+    event.preventDefault();
+    commitMultiCursorEdits(multiCursorSelections.map(range => ({ ...range, text: pastedText })));
+  });
+  editor.addEventListener('cut', event => {
+    if (multiCursorSelections.length < 2) return;
+    const selectedText = multiCursorSelections.filter(range => range.end > range.start).map(range => editor.value.slice(range.start, range.end));
+    if (!selectedText.length) return;
+    event.preventDefault();
+    event.clipboardData?.setData('text/plain', selectedText.join('\n'));
+    commitMultiCursorEdits(multiCursorSelections.map(range => ({ ...range, text: '' })));
+  });
   editor.addEventListener('input', () => {
+    if (!applyingMultiCursorEdit) clearMultiCursorSelections(false);
     markSearchDocumentChanged();
     syncActiveTab();
     const tab = activeTab();
@@ -11336,11 +12042,14 @@
       editor.focus();
     }
   });
+  editor.addEventListener('mousedown', () => clearMultiCursorSelections());
+  editor.addEventListener('focus', () => { lastFocusedEditorPane = 'main'; clearMultiCursorSelections(); });
   editor.addEventListener('click', updateCursorInfo);
   editor.addEventListener('keyup', () => { rememberActiveView(); clearTimeout(autocompleteUpdateTimer); autocompleteUpdateTimer = setTimeout(updateIdAutocomplete, 100); scheduleCodeCompletion(); });
   editor.addEventListener('select', () => { rememberActiveView(); clearTimeout(autocompleteUpdateTimer); autocompleteUpdateTimer = setTimeout(updateIdAutocomplete, 100); codeCompletion.classList.add('hidden'); });
   editor.addEventListener('click', () => { clearTimeout(autocompleteUpdateTimer); autocompleteUpdateTimer = setTimeout(updateIdAutocomplete, 80); });
   document.addEventListener('selectionchange', rememberActiveView);
+  document.addEventListener('selectionchange', rememberSplitView);
   document.addEventListener('mousedown', event => {
     if (event.button === 0) {
       clearTimeout(codeCompletionUpdateTimer);
@@ -11350,6 +12059,7 @@
   });
 
   editor.addEventListener('keydown', (e) => {
+    if (handleMultiCursorKeydown(e)) return;
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
       e.preventDefault();
       copyJsonPointer();
@@ -11509,6 +12219,7 @@
       }
     });
   }
+  window.cddaDesktop?.onOpenJsonPaths?.(openFilesFromPaths);
   if (restoreTabs()) {
     const restoredTab = activeTab();
     const restoredDirty = restoredTab.dirty;
